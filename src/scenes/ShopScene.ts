@@ -4,6 +4,7 @@ import type { TimeOfDay } from '../game/gameState'
 import { hintFor, mixScent, scoreMix } from '../game/scoring'
 import type { Stars } from '../game/scoring'
 import { CustomerArt } from './ui/CustomerArt'
+import { addCounterCrop } from './ui/counterCrop'
 import { EveningOverlay } from './ui/EveningOverlay'
 import { MixView } from './ui/MixView'
 import { OrderView } from './ui/OrderView'
@@ -14,6 +15,17 @@ import { addPillLabel } from './ui/theme'
 export const TRANSITION_MS = 350 // total time of a fade between phases (half out, half in)
 const COUNTER_TOP_Y = 578 // in canvas pixels: the counter's top edge; everything from here down is drawn in front of the customer
 const EVENING_CUSTOMER_TINT = 0xffd9b0 // warm tint so the portrait matches the evening light
+// Depth of every scene layer, back to front. UI objects keep the default depth 0, so all the
+// art layers are negative and the UI is always on top of them. The customer is above the
+// evening effects that sit behind it, and only the counter crops are above the customer.
+const DEPTH = {
+  background: -100, // morning image
+  eveningBehind: -90, // tint copy, violet, door glow, lantern glow
+  customer: -80,
+  counter: -70, // morning counter crop
+  eveningCounter: -60, // evening-tinted counter crop
+  mixBackdrop: -50, // only shown in the MIX phase
+}
 const DIM = { color: 0x2a1a10, alpha: 0.45 } // warm dark veil over the shop in the mix phase
 const FADE_COLOR = 0x1a1210
 const FADE_DEPTH = 1000 // above everything, so the transition covers the whole screen
@@ -63,15 +75,22 @@ export class ShopScene extends Phaser.Scene {
     this.counterOverlays = []
     this.mixBackdrop = []
 
-    // Draw order is creation order, back to front:
-    // background, customer, counter overlay, evening look (tints everything below it),
-    // mix backdrop (only shown in the MIX phase), then all UI, then the fade
-    this.addBackground('shop_morning', 0x5b3a29)
-    this.customer = new CustomerArt(this)
+    // Layers are ordered by the DEPTH table above, not by creation order
+    this.addBackground('shop_morning', 0x5b3a29).setDepth(DEPTH.background)
+    this.customer = new CustomerArt(this, DEPTH.customer)
     // A copy of the background showing only the counter, drawn over the customer so
     // they appear to stand behind it
-    this.addCounterOverlay('shop_morning')
-    this.evening = new EveningOverlay(this, 'shop_morning')
+    const counter = addCounterCrop(this, 'shop_morning', COUNTER_TOP_Y)
+    if (counter) {
+      counter.setDepth(DEPTH.counter)
+      this.counterOverlays.push(counter)
+    }
+    this.evening = new EveningOverlay(
+      this,
+      'shop_morning',
+      { behind: DEPTH.eveningBehind, counter: DEPTH.eveningCounter },
+      COUNTER_TOP_Y,
+    )
     this.addMixBackdrop()
 
     addPillLabel(this, TITLE.x, TITLE.y, TITLE.width, TITLE.height, 'Attar', 32)
@@ -145,6 +164,7 @@ export class ShopScene extends Phaser.Scene {
     const showCustomer = phase !== 'mix'
     this.customer.setVisible(showCustomer)
     this.counterOverlays.forEach((overlay) => overlay.setVisible(showCustomer))
+    this.evening.setCounterVisible(showCustomer)
     this.speech.setVisible(showCustomer)
     this.mixBackdrop.forEach((layer) => layer.setVisible(phase === 'mix'))
     this.orderView.setVisible(phase === 'order')
@@ -189,9 +209,13 @@ export class ShopScene extends Phaser.Scene {
   private addMixBackdrop() {
     const { width, height } = this.scale
     if (this.textures.exists('counter_view')) {
-      this.mixBackdrop.push(this.add.image(width / 2, height / 2, 'counter_view').setDisplaySize(width, height))
+      this.mixBackdrop.push(
+        this.add.image(width / 2, height / 2, 'counter_view').setDisplaySize(width, height).setDepth(DEPTH.mixBackdrop),
+      )
     } else {
-      this.mixBackdrop.push(this.add.rectangle(width / 2, height / 2, width, height, DIM.color, DIM.alpha))
+      this.mixBackdrop.push(
+        this.add.rectangle(width / 2, height / 2, width, height, DIM.color, DIM.alpha).setDepth(DEPTH.mixBackdrop),
+      )
     }
   }
 
@@ -203,17 +227,5 @@ export class ShopScene extends Phaser.Scene {
     }
     console.warn(`Texture "${key}" missing, using a colored rectangle`)
     return this.add.rectangle(width / 2, height / 2, width, height, fallbackColor)
-  }
-
-  // A copy of the background cropped to the counter part. It uses the same position and
-  // display size as the full background, so the two line up exactly. Skipped if the texture is missing.
-  private addCounterOverlay(key: string) {
-    if (!this.textures.exists(key)) return
-    const { width, height } = this.scale
-    const image = this.add.image(width / 2, height / 2, key).setDisplaySize(width, height)
-    // setCrop works in texture pixels, so convert the canvas Y into the texture's scale
-    const cropY = (COUNTER_TOP_Y / height) * image.height
-    image.setCrop(0, cropY, image.width, image.height - cropY)
-    this.counterOverlays.push(image)
   }
 }

@@ -28,7 +28,7 @@ export const ORDERS: Order[] = [
   },
   {
     id: 'spring',
-    customerName: 'Defne',
+    customerName: 'Nida',
     orderText: 'The first warm day of spring, window wide open.',
     target: t({ floral: 2, citrus: 2, sweet: 1 }),
   },

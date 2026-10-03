@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import type { TimeOfDay } from '../../game/gameState'
+import { addCounterCrop } from './counterCrop'
 
 // All the evening look is tuned here. Positions are in 1280x720 canvas pixels.
 const FADE_MS = 1500 // morning <-> evening crossfade
@@ -41,14 +42,20 @@ function addGlow(scene: Phaser.Scene, x: number, y: number, radius: number, colo
     .setBlendMode(Phaser.BlendModes.ADD)
 }
 
+type Depths = { behind: number; counter: number }
+
 // The evening look, built in code on top of the morning image (there is no evening
-// picture). Everything sits in one container, so a single alpha tween fades it all in.
+// picture). It has two parts, drawn at different depths:
+//  - behind the customer: one container (tint copy, violet, glows), faded by one alpha tween
+//  - in front of the customer: the counter crop in the same warm tint, so the counter is
+//    evening-lit too. Nothing else may be drawn above the customer.
 export class EveningOverlay {
   private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
   private lanternGlow: Phaser.GameObjects.Image
+  private counterCrop?: Phaser.GameObjects.Image
 
-  constructor(scene: Phaser.Scene, backgroundKey: string) {
+  constructor(scene: Phaser.Scene, backgroundKey: string, depths: Depths, counterTopY: number) {
     this.scene = scene
     const { width, height } = scene.scale
     ensureGlowTexture(scene)
@@ -72,16 +79,29 @@ export class EveningOverlay {
     this.lanternGlow = addGlow(scene, LANTERN_GLOW.x, LANTERN_GLOW.y, LANTERN_GLOW.radius, LANTERN_GLOW.color)
     layers.push(this.lanternGlow)
 
-    this.root = scene.add.container(0, 0, layers).setAlpha(0)
+    this.root = scene.add.container(0, 0, layers).setAlpha(0).setDepth(depths.behind)
+
+    this.counterCrop = addCounterCrop(scene, backgroundKey, counterTopY)
+    this.counterCrop?.setTint(TINTED_COPY.tint).setAlpha(0).setDepth(depths.counter)
+  }
+
+  // The counter crop belongs to the customer's view, so it is hidden in the MIX phase
+  setCounterVisible(visible: boolean) {
+    this.counterCrop?.setVisible(visible)
   }
 
   setTime(time: TimeOfDay) {
+    const evening = time === 'evening'
     this.scene.tweens.killTweensOf(this.root) // a new fade replaces one still running
-    this.scene.tweens.add({
-      targets: this.root,
-      alpha: time === 'evening' ? 1 : 0,
-      duration: FADE_MS,
-    })
+    this.scene.tweens.add({ targets: this.root, alpha: evening ? 1 : 0, duration: FADE_MS })
+    if (this.counterCrop) {
+      this.scene.tweens.killTweensOf(this.counterCrop)
+      this.scene.tweens.add({
+        targets: this.counterCrop,
+        alpha: evening ? TINTED_COPY.alpha : 0,
+        duration: FADE_MS,
+      })
+    }
 
     // The flicker only runs in the evening
     this.scene.tweens.killTweensOf(this.lanternGlow)

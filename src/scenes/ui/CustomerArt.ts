@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import type { Order } from '../../data/customers'
+import { CUSTOMER_LAYOUT, DEFAULT_LAYOUT } from '../../data/customerLayout'
 import { lerpColor } from './liquidColor'
 import { addPanel, FONT, TEXT_COLOR } from './theme'
 
@@ -25,10 +26,10 @@ export class CustomerArt {
   private targetTint = NO_TINT
   private tintProgress = { t: 1 }
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, depth: number) {
     this.scene = scene
     // The container sits at the feet, so scaling it keeps the feet in place (like walking closer)
-    this.root = scene.add.container(PORTRAIT.x, PORTRAIT.y)
+    this.root = scene.add.container(PORTRAIT.x, PORTRAIT.y).setDepth(depth)
   }
 
   // Rebuilt for every customer (simpler than swapping textures and re-scaling), then walks in
@@ -39,8 +40,10 @@ export class CustomerArt {
     const key = `customer_${order.id}`
     if (this.scene.textures.exists(key)) {
       // Origin at bottom-center, placed at the container's origin (the feet); scale from the wanted height
-      const portrait = this.scene.add.image(0, 0, key).setOrigin(0.5, 1)
-      portrait.setScale(PORTRAIT.height / portrait.height)
+      // The per-customer tweak (scale multiplier, vertical offset) evens out the eye line
+      const layout = CUSTOMER_LAYOUT[order.id] ?? DEFAULT_LAYOUT
+      const portrait = this.scene.add.image(0, layout.offsetY, key).setOrigin(0.5, 1)
+      portrait.setScale((PORTRAIT.height * layout.scale) / portrait.height)
       this.root.add(portrait)
       this.portrait = portrait
       // A customer who just arrived gets the current light at once, no fade
@@ -70,6 +73,8 @@ export class CustomerArt {
       y: PORTRAIT.y,
       duration: ENTER_MS,
       ease: 'Sine.easeOut',
+      // Land exactly on fully opaque and full size, whatever the tween's last step was
+      onComplete: () => this.root.setAlpha(1).setScale(1).setY(PORTRAIT.y),
     })
   }
 
@@ -97,6 +102,7 @@ export class CustomerArt {
   }
 
   leave(onDone: () => void) {
+    this.scene.tweens.killTweensOf(this.root) // an unfinished entrance must not fight the fade-out
     this.scene.tweens.add({ targets: this.root, alpha: 0, duration: LEAVE_MS, onComplete: onDone })
   }
 
