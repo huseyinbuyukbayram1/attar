@@ -52,6 +52,6 @@ export function addPillLabel(
 ): Phaser.GameObjects.Text {
   addPanel(scene, x, y, width, height, height / 2)
   return scene.add
-    .text(x, y, text, { fontFamily: FONT, fontSize: `${fontSize}px`, color: TEXT_COLOR })
+    .text(x, y, text, { fontFamily: FONT, fontSize: `${fontSize}px`, color: TEXT_COLOR, align: 'center' })
     .setOrigin(0.5)
 }

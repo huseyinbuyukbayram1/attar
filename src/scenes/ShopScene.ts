@@ -2,11 +2,13 @@ import Phaser from 'phaser'
 import { ORDERS } from '../data/customers'
 import { CUSTOMERS_PER_DAY, GameState, TOTAL_DAYS } from '../game/gameState'
 import type { TimeOfDay } from '../game/gameState'
+import { DEBT, formatMoney, payoutFor } from '../game/economy'
 import { hintFor, mixScent, scoreMix } from '../game/scoring'
 import type { Stars } from '../game/scoring'
 import { CustomerArt } from './ui/CustomerArt'
 import { addCounterCrop } from './ui/counterCrop'
 import { ContactSheet } from './ui/ContactSheet'
+import { DayCard } from './ui/DayCard'
 import { EveningOverlay } from './ui/EveningOverlay'
 import { MixView } from './ui/MixView'
 import { OrderView } from './ui/OrderView'
@@ -37,7 +39,7 @@ const FADE_DEPTH = 1000 // above everything, so the transition covers the whole 
 
 // Small always-on labels in the top corners (16 px from the canvas edges)
 const TITLE = { x: 76, y: 38, width: 120, height: 48 }
-const DAY_LABEL = { x: 1129, y: 32, width: 270, height: 36 }
+const HUD = { x: 1144, y: 42, width: 240, height: 56 } // two lines: day/customer, then money
 
 // What the customer says after delivery, by star count
 const REACTIONS: Record<Stars, string> = {
@@ -67,7 +69,8 @@ export class ShopScene extends Phaser.Scene {
   private orderView!: OrderView
   private mixView!: MixView
   private reactView!: ReactView
-  private dayText!: Phaser.GameObjects.Text
+  private hud!: Phaser.GameObjects.Text
+  private dayCard!: DayCard
   private fade!: Phaser.GameObjects.Rectangle
   private phase: Phase = 'order'
   private devLabel?: Phaser.GameObjects.Text // TEMP: remove before release
@@ -102,7 +105,7 @@ export class ShopScene extends Phaser.Scene {
     this.addMixBackdrop()
 
     addPillLabel(this, TITLE.x, TITLE.y, TITLE.width, TITLE.height, 'Attar', 32)
-    this.dayText = addPillLabel(this, DAY_LABEL.x, DAY_LABEL.y, DAY_LABEL.width, DAY_LABEL.height, '', 20)
+    this.hud = addPillLabel(this, HUD.x, HUD.y, HUD.width, HUD.height, '', 18)
 
     this.speech = new SpeechBox(this)
     this.orderView = new OrderView(this, () => this.goTo('mix'))
@@ -122,10 +125,12 @@ export class ShopScene extends Phaser.Scene {
       .setAlpha(0)
       .setDepth(FADE_DEPTH)
 
+    this.dayCard = new DayCard(this)
+
     // TEMP: remove before release
     if (DEV_SKIP_KEYS) this.addDevKeys()
 
-    this.startCustomer()
+    this.beginCustomer(true)
   }
 
   // The state decides the time of day; the overlay plays the 1500 ms crossfade
@@ -134,12 +139,38 @@ export class ShopScene extends Phaser.Scene {
     this.customer.setTint(time === 'evening' ? EVENING_CUSTOMER_TINT : null)
   }
 
+  // The first customer of a day arrives behind a "Day X" card (the screen is reset while the
+  // card covers it); the second one arrives directly. Clicks are blocked meanwhile.
+  private beginCustomer(firstOfGame = false) {
+    if (this.state.customerOfDay !== 1) {
+      this.startCustomer()
+      this.busy = false
+      return
+    }
+    this.busy = true
+    this.dayCard.show(
+      this.state.day,
+      () => this.startCustomer(),
+      () => {
+        this.busy = false
+      },
+      firstOfGame,
+    )
+  }
+
+  private updateHud() {
+    const { state } = this
+    this.hud.setText(
+      `Day ${state.day}/${TOTAL_DAYS} - Customer ${state.customerOfDay}/${CUSTOMERS_PER_DAY}\n` +
+        `${formatMoney(state.money)} / ${formatMoney(DEBT)}`,
+    )
+  }
+
   // A new customer arrives: reset the screen and start in the ORDER phase
   private startCustomer() {
     const { state } = this
-    this.busy = false
     this.setTimeOfDay(state.timeOfDay)
-    this.dayText.setText(`Day ${state.day}/${TOTAL_DAYS} - Customer ${state.customerOfDay}/${CUSTOMERS_PER_DAY}`)
+    this.updateHud()
     this.speech.setSpeaker(state.order.customerName)
     this.speech.setText(state.order.orderText)
     this.customer.show(state.order)
@@ -197,9 +228,12 @@ export class ShopScene extends Phaser.Scene {
   private deliver() {
     const { state } = this
     const score = scoreMix(state.drops, state.order)
+    const payout = payoutFor(score.stars)
     state.addStars(score.stars)
+    state.addMoney(payout)
+    this.updateHud()
     const stars = '★'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
-    this.speech.setText(`${stars}\n${REACTIONS[score.stars]}`)
+    this.speech.setText(`${stars}\n${REACTIONS[score.stars]}\n+${formatMoney(payout)}`)
     this.reactView.showNext(state.isLastOrder)
   }
 
@@ -209,11 +243,11 @@ export class ShopScene extends Phaser.Scene {
     this.reactView.hideButtons()
     this.customer.leave(() => {
       if (this.state.isLastOrder) {
-        this.scene.start('EndScene', { totalStars: this.state.totalStars })
+        this.scene.start('EndingScene', { money: this.state.money })
         return
       }
       this.state.nextCustomer()
-      this.startCustomer()
+      this.beginCustomer()
     })
   }
 
@@ -243,7 +277,7 @@ export class ShopScene extends Phaser.Scene {
   }
 
   // TEMP: remove before release. N / B flip through all customers in the ORDER phase to check
-  // portraits in morning and evening. It only moves orderIndex: totalStars is never touched.
+  // portraits in morning and evening. It only moves orderIndex: money and stars are never touched.
   // G opens a contact sheet of all ten customers, E toggles evening in it.
   // All of it is ignored while a phase transition runs.
   private addDevKeys() {

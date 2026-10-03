@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
 import { BootScene } from './scenes/BootScene'
 import { ShopScene } from './scenes/ShopScene'
-import { EndScene } from './scenes/EndScene'
+import { EndingScene } from './scenes/EndingScene'
+import { IntroScene } from './scenes/IntroScene'
 
 // Game config: fixed 1280x720 design resolution, scaled to fit any window
 new Phaser.Game({
@@ -14,5 +15,5 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT, // shrink/grow canvas to fit window, keep aspect ratio
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, ShopScene, EndScene], // first scene in the list starts automatically
+  scene: [BootScene, IntroScene, ShopScene, EndingScene], // first scene in the list starts automatically
 })

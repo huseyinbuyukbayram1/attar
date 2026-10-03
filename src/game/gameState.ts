@@ -14,6 +14,7 @@ export const MAX_SMELLS = 2 // tune after timing a full playthrough
 export class GameState {
   orderIndex = 0
   totalStars = 0
+  money = 0 // the main score: how much of the debt has been earned back
   // Fixed slots, not a list: emptying one slot must not move the others.
   // null = empty slot.
   slots: (string | null)[] = new Array<string | null>(MAX_DROPS).fill(null)
@@ -78,6 +79,10 @@ export class GameState {
 
   addStars(stars: number) {
     this.totalStars += stars
+  }
+
+  addMoney(amount: number) {
+    this.money += amount
   }
 
   // Moves to the next customer with an empty vial and fresh smells

@@ -7,14 +7,14 @@ export const DEFAULT_LAYOUT: CustomerLayout = { scale: 1, offsetY: 0 }
 
 // Keyed by order id; a customer without an entry uses DEFAULT_LAYOUT
 export const CUSTOMER_LAYOUT: Record<string, CustomerLayout> = {
-  asphalt: { scale: 1, offsetY: 0 },
-  wardrobe: { scale: 1.0, offsetY: 0 },
-  spring: { scale: 1.0, offsetY: 0 },
-  kitchen: { scale: 1.0, offsetY: -10 },
-  harbour: { scale: 1.0, offsetY: 0 },
-  wedding: { scale: 1.0, offsetY: 0 },
-  market: { scale: 1.0, offsetY: 0 },
-  lobby: { scale: 1.0, offsetY: 0 },
-  school: { scale: 1.0, offsetY: 0 },
-  master: { scale: 1.0, offsetY: 0 },
+  asphalt: { scale: 1.00, offsetY: 0 },
+  wardrobe: { scale: 1.00, offsetY: 0 },
+  spring: { scale: 1.00, offsetY: 40 },
+  kitchen: { scale: 1.00, offsetY: 20 },
+  harbour: { scale: 0.95, offsetY: 25 },
+  wedding: { scale: 1.00, offsetY: 15 },
+  market: { scale: 0.95, offsetY: -45 },
+  lobby: { scale: 0.95, offsetY: -5 },
+  school: { scale: 1.16, offsetY: 45 },
+  master: { scale: 1.16, offsetY: 45 },
 }
