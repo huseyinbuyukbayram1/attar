@@ -16,8 +16,7 @@ const SPEECH = { x: 640, y: 95, width: 640, height: 80 }
 const REACTION_Y = 425
 const BUTTON_Y = 500
 const BUTTON_HEIGHT = 44
-const UNDO = { x: 620, width: 90 }
-const CLEAR = { x: 720, width: 90 }
+const CLEAR = { x: 640, width: 90 }
 const SMELL = { x: 850, width: 120 }
 const DELIVER = { x: 1010, width: 160 } // "Next customer" takes its place after delivering
 
@@ -42,7 +41,6 @@ export class ShopScene extends Phaser.Scene {
   private speechText!: Phaser.GameObjects.Text
   private reactionText!: Phaser.GameObjects.Text
   private vial!: Vial
-  private undoButton!: Button
   private clearButton!: Button
   private smellButton!: Button
   private deliverButton!: Button
@@ -70,7 +68,7 @@ export class ShopScene extends Phaser.Scene {
       .setOrigin(1, 0)
 
     this.addCustomer()
-    this.vial = new Vial(this)
+    this.vial = new Vial(this, (index) => this.emptySlot(index))
     addIngredientShelf(this, (id) => this.pickIngredient(id))
     this.addButtons()
 
@@ -122,10 +120,6 @@ export class ShopScene extends Phaser.Scene {
 
   private addButtons() {
     const h = BUTTON_HEIGHT
-    this.undoButton = new Button(this, UNDO.x, BUTTON_Y, UNDO.width, h, 'Undo', () => {
-      this.state.undo()
-      this.refresh()
-    })
     this.clearButton = new Button(this, CLEAR.x, BUTTON_Y, CLEAR.width, h, 'Clear', () => {
       this.state.clear()
       this.refresh()
@@ -151,8 +145,7 @@ export class ShopScene extends Phaser.Scene {
   // One place that decides what is enabled/visible, called after every change
   private refresh() {
     const { state } = this
-    this.vial.setDrops(state.drops)
-    this.undoButton.setEnabled(!this.delivered && state.drops.length > 0)
+    this.vial.setSlots(state.slots)
     this.clearButton.setEnabled(!this.delivered && state.drops.length > 0)
     this.smellButton.setText(`Smell (${state.smellsUsed}/${MAX_SMELLS})`)
     this.smellButton.setEnabled(!this.delivered && state.canSmell())
@@ -163,7 +156,13 @@ export class ShopScene extends Phaser.Scene {
 
   private pickIngredient(id: string) {
     if (this.delivered) return
-    this.state.addDrop(id)
+    if (this.state.addDrop(id)) this.refresh()
+    else this.vial.shake() // all slots full: tiny shake instead of silently ignoring the click
+  }
+
+  private emptySlot(index: number) {
+    if (this.delivered) return
+    this.state.removeSlot(index)
     this.refresh()
   }
 

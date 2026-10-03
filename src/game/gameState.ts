@@ -14,7 +14,9 @@ export const MAX_SMELLS = 2
 export class GameState {
   orderIndex = 0
   totalStars = 0
-  drops: string[] = []
+  // Fixed slots, not a list: emptying one slot must not move the others.
+  // null = empty slot.
+  slots: (string | null)[] = new Array<string | null>(MAX_DROPS).fill(null)
   smellsUsed = 0
 
   get order(): Order {
@@ -39,16 +41,26 @@ export class GameState {
     return this.orderIndex === ORDERS.length - 1
   }
 
-  addDrop(id: string) {
-    if (this.drops.length < MAX_DROPS) this.drops.push(id)
+  // The filled slots as a plain list. Scoring ignores order, so slot positions don't matter.
+  get drops(): string[] {
+    return this.slots.filter((id): id is string => id !== null)
   }
 
-  undo() {
-    this.drops.pop()
+  // Fills the first empty slot. Returns false when all slots are full so the UI can react.
+  addDrop(id: string): boolean {
+    const free = this.slots.indexOf(null)
+    if (free === -1) return false
+    this.slots[free] = id
+    return true
+  }
+
+  // Empties just one slot, so the player can swap a single drop after a smell
+  removeSlot(index: number) {
+    this.slots[index] = null
   }
 
   clear() {
-    this.drops = []
+    this.slots.fill(null)
   }
 
   canSmell(): boolean {
@@ -71,7 +83,7 @@ export class GameState {
   // Moves to the next customer with an empty vial and fresh smells
   nextCustomer() {
     this.orderIndex++
-    this.drops = []
+    this.clear()
     this.smellsUsed = 0
   }
 }
