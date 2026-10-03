@@ -29,3 +29,4 @@ Vite + TypeScript (strict) + Phaser 3. Runs fully in the browser, no backend.
 Record every DreamLayer generation in ASSET_LOG.md: file, prompt, command,
 credits left. This feeds the devlog.
 See ASSET_LOG.md for asset rules, the generation log and the improvement list.
+Keep DEVLOG.md updated; it is public-facing: never include API keys, emails or anything about hiring.
