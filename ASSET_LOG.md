@@ -32,3 +32,4 @@ Findings for the devlog:
 - [ ] Make shop_evening closer to the soft watercolor style of shop_morning.
 - [ ] Remove the hanging rope/tassel and the lit candle from shop_evening.
 - [ ] Optional: remove the blue tile medallion from shop_morning (web app edit step failed).
+- [ ] Replace the realistic customer portraits (Leyla, Mr. Orhan, Selim) with stylized versions.

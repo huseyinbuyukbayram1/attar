@@ -46,6 +46,14 @@ made for the DreamLayer Game Jam with Phaser 3 + TypeScript. This is my first ga
 - `edit` returned a 2048x2048 square image for a 2560x1440 input, even when
   `--aspect 16:9` was passed; the flag was accepted without an error and
   ignored. A second attempt gave the same result.
+- A photo-based `edit` (portrait of a person) failed several times with
+  `generation_failed` and no further detail, with both a long and a very short
+  prompt. No credits were charged for the failed calls.
+- Realistic portraits looked out of place against the stylized background.
+  Stylized ink-and-watercolor characters with bold outlines blended in much
+  better.
+- Negative style words in the prompt were not reliably honored; the style was
+  driven mostly by the positive wording.
 
 ### Ideas
 - Show the estimated credit cost of a multi-step edit before it runs.

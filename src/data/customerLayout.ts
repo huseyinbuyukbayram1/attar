@@ -11,4 +11,6 @@ export const CUSTOMER_LAYOUT: Record<string, CustomerLayout> = {
   wardrobe: { scale: 1.12, offsetY: 12 },
   spring: { scale: 1.0, offsetY: 0 },
   kitchen: { scale: 1.0, offsetY: -10 },
+  harbour: { scale: 1.0, offsetY: 0 },
+  market: { scale: 1.0, offsetY: 0 },
 }
