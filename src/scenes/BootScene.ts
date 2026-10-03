@@ -17,7 +17,8 @@ export class BootScene extends Phaser.Scene {
 
     // Real art is loaded by file name from public/assets/, so swapping art needs no code change
     this.load.image('shop_morning', 'assets/backgrounds/shop_morning.jpg')
-    this.load.image('shop_evening', 'assets/backgrounds/shop_evening.png')
+    // Optional art for the mixing phase; without it ShopScene dims the shop background instead
+    this.load.image('counter_view', 'assets/backgrounds/counter_view.jpg')
 
     // One portrait per order, found by order id. Portraits are made one at a time, so
     // many will be missing for a while. A missing or invalid file fires 'loaderror' (warned

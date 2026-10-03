@@ -7,7 +7,7 @@ export type TimeOfDay = 'morning' | 'evening'
 export const CUSTOMERS_PER_DAY = 2
 export const TOTAL_DAYS = ORDERS.length / CUSTOMERS_PER_DAY
 export const MAX_STARS = ORDERS.length * 3
-export const MAX_SMELLS = 2
+export const MAX_SMELLS = 2 // tune after timing a full playthrough
 
 // Everything that changes while playing, kept in one place with no Phaser code,
 // so the scene only has to draw it and the rules stay easy to read.
@@ -46,12 +46,12 @@ export class GameState {
     return this.slots.filter((id): id is string => id !== null)
   }
 
-  // Fills the first empty slot. Returns false when all slots are full so the UI can react.
-  addDrop(id: string): boolean {
+  // Fills the first empty slot and returns its index, or -1 when all slots are full
+  // so the UI can react. The index tells the UI which slot a drop is flying to.
+  addDrop(id: string): number {
     const free = this.slots.indexOf(null)
-    if (free === -1) return false
-    this.slots[free] = id
-    return true
+    if (free !== -1) this.slots[free] = id
+    return free
   }
 
   // Empties just one slot, so the player can swap a single drop after a smell
@@ -67,9 +67,9 @@ export class GameState {
     return this.drops.length >= MIN_DROPS && this.smellsUsed < MAX_SMELLS
   }
 
-  // Delivering needs a smell first, and still enough drops if the player cleared after smelling
+  // Delivering only needs enough drops; smelling first is no longer required
   canDeliver(): boolean {
-    return this.smellsUsed >= 1 && this.drops.length >= MIN_DROPS
+    return this.drops.length >= MIN_DROPS
   }
 
   useSmell() {

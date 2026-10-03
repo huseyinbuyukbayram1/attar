@@ -43,6 +43,9 @@ made for the DreamLayer Game Jam with Phaser 3 + TypeScript. This is my first ga
   installed CLI cannot use it, and suggests `npm i -g dreamlayer`. The CLI docs
   say sprite sheets need the beta version, so that suggestion may not fix it.
 - Docs mention beta.3 in one place and beta.4 in another.
+- `edit` returned a 2048x2048 square image for a 2560x1440 input, even when
+  `--aspect 16:9` was passed; the flag was accepted without an error and
+  ignored. A second attempt gave the same result.
 
 ### Ideas
 - Show the estimated credit cost of a multi-step edit before it runs.
