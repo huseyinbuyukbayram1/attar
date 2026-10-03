@@ -5,7 +5,7 @@ import { addCounterCrop } from './counterCrop'
 // All the evening look is tuned here. Positions are in 1280x720 canvas pixels.
 const FADE_MS = 1500 // morning <-> evening crossfade
 // a) a copy of the morning image, tinted warm, laid over it at partial alpha
-const TINTED_COPY = { tint: 0xffa66b, alpha: 0.55 }
+export const TINTED_COPY = { tint: 0xffa66b, alpha: 0.55 }
 // b) a dark violet layer that darkens everything it covers (multiply blend)
 const VIOLET = { color: 0x3a2060, alpha: 0.18 }
 // c) light coming in through the open door

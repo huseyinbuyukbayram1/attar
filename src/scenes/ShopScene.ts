@@ -6,6 +6,7 @@ import { hintFor, mixScent, scoreMix } from '../game/scoring'
 import type { Stars } from '../game/scoring'
 import { CustomerArt } from './ui/CustomerArt'
 import { addCounterCrop } from './ui/counterCrop'
+import { ContactSheet } from './ui/ContactSheet'
 import { EveningOverlay } from './ui/EveningOverlay'
 import { MixView } from './ui/MixView'
 import { OrderView } from './ui/OrderView'
@@ -16,7 +17,7 @@ import { addPillLabel } from './ui/theme'
 export const TRANSITION_MS = 350 // total time of a fade between phases (half out, half in)
 const COUNTER_TOP_Y = 578 // in canvas pixels: the counter's top edge; everything from here down is drawn in front of the customer
 // TEMP: remove before release (also the marked code in create() and startCustomer())
-const DEV_SKIP_KEYS = true // N = next customer, B = previous, no scoring
+const DEV_SKIP_KEYS = true // N = next customer, B = previous (no scoring), G = contact sheet, E = evening in it
 
 const EVENING_CUSTOMER_TINT = 0xffd9b0 // warm tint so the portrait matches the evening light
 // Depth of every scene layer, back to front. UI objects keep the default depth 0, so all the
@@ -70,6 +71,7 @@ export class ShopScene extends Phaser.Scene {
   private fade!: Phaser.GameObjects.Rectangle
   private phase: Phase = 'order'
   private devLabel?: Phaser.GameObjects.Text // TEMP: remove before release
+  private sheet?: ContactSheet // TEMP: remove before release
 
   constructor() {
     super('ShopScene')
@@ -121,7 +123,7 @@ export class ShopScene extends Phaser.Scene {
       .setDepth(FADE_DEPTH)
 
     // TEMP: remove before release
-    if (DEV_SKIP_KEYS) this.addDevSkipKeys()
+    if (DEV_SKIP_KEYS) this.addDevKeys()
 
     this.startCustomer()
   }
@@ -242,10 +244,17 @@ export class ShopScene extends Phaser.Scene {
 
   // TEMP: remove before release. N / B flip through all customers in the ORDER phase to check
   // portraits in morning and evening. It only moves orderIndex: totalStars is never touched.
-  private addDevSkipKeys() {
+  // G opens a contact sheet of all ten customers, E toggles evening in it.
+  // All of it is ignored while a phase transition runs.
+  private addDevKeys() {
     this.devLabel = addPillLabel(this, 91, this.scale.height - 26, 150, 20, '', 12)
+    this.sheet = new ContactSheet(this, {
+      backgroundKey: 'shop_morning',
+      counterTopY: COUNTER_TOP_Y,
+      eveningCustomerTint: EVENING_CUSTOMER_TINT,
+    })
     const skip = (step: number) => {
-      if (this.phase !== 'order' || this.busy) return
+      if (this.phase !== 'order' || this.busy || this.sheet?.isOpen) return
       const { state } = this
       state.orderIndex = (state.orderIndex + step + ORDERS.length) % ORDERS.length
       state.clear()
@@ -254,13 +263,23 @@ export class ShopScene extends Phaser.Scene {
     }
     const next = () => skip(1)
     const previous = () => skip(-1)
+    const toggleSheet = () => {
+      if (!this.busy) this.sheet?.toggle()
+    }
+    const toggleEvening = () => {
+      if (!this.busy) this.sheet?.toggleEvening()
+    }
     const keyboard = this.input.keyboard
     keyboard?.on('keydown-N', next)
     keyboard?.on('keydown-B', previous)
+    keyboard?.on('keydown-G', toggleSheet)
+    keyboard?.on('keydown-E', toggleEvening)
     // Phaser reuses this scene on restart, so remove the listeners when it shuts down
     this.events.once('shutdown', () => {
       keyboard?.off('keydown-N', next)
       keyboard?.off('keydown-B', previous)
+      keyboard?.off('keydown-G', toggleSheet)
+      keyboard?.off('keydown-E', toggleEvening)
     })
   }
 }

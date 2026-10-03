@@ -1,12 +1,9 @@
 import Phaser from 'phaser'
 import type { Order } from '../../data/customers'
-import { CUSTOMER_LAYOUT, DEFAULT_LAYOUT } from '../../data/customerLayout'
 import { lerpColor } from './liquidColor'
+import { PORTRAIT, portraitPlacement } from './portraitPlacement'
 import { addPanel, FONT, TEXT_COLOR } from './theme'
 
-// Tune the portrait here. x is the center and y the bottom edge (the feet) of the portrait:
-// the counter overlay (COUNTER_TOP_Y in ShopScene) hides everything below the counter line.
-const PORTRAIT = { x: 640, y: 640, height: 440 }
 const PLACEHOLDER = { y: 400, width: 180, height: 260 } // box shown when a portrait is missing
 // The customer walks in from the door: smaller and a bit higher, then grows into place
 const ENTER_MS = 500
@@ -40,10 +37,11 @@ export class CustomerArt {
     const key = `customer_${order.id}`
     if (this.scene.textures.exists(key)) {
       // Origin at bottom-center, placed at the container's origin (the feet); scale from the wanted height
-      // The per-customer tweak (scale multiplier, vertical offset) evens out the eye line
-      const layout = CUSTOMER_LAYOUT[order.id] ?? DEFAULT_LAYOUT
-      const portrait = this.scene.add.image(0, layout.offsetY, key).setOrigin(0.5, 1)
-      portrait.setScale((PORTRAIT.height * layout.scale) / portrait.height)
+      // Where and how big comes from the shared placement function. The container sits at the
+      // default feet position, so the portrait is placed relative to it.
+      const place = portraitPlacement(order.id)
+      const portrait = this.scene.add.image(place.x - PORTRAIT.x, place.y - PORTRAIT.y, key).setOrigin(0.5, 1)
+      portrait.setScale(place.height / portrait.height)
       this.root.add(portrait)
       this.portrait = portrait
       // A customer who just arrived gets the current light at once, no fade
