@@ -13,6 +13,7 @@ const LIQUID_ALPHA = 0.92
 const SURFACE = { lighten: 0.35, alpha: 0.55, flatness: 0.2 } // lighter ellipse on top of the liquid
 const LIQUID_MS = 250
 const START_COLOR = 0xf3e2b3
+const EVENING_TINT = 0xffd9b0 // multiplied into the flask picture in the evening
 
 // Where a flying drop should end up: just inside the flask's mouth
 export const FLASK_MOUTH = { x: FLASK.x, y: FLASK.bottom - FLASK.height + 10 }
@@ -23,6 +24,8 @@ export const FLASK_MOUTH = { x: FLASK.x, y: FLASK.bottom - FLASK.height + 10 }
 // without a mask: Phaser 4 only supports geometry masks in Canvas, not in WebGL.
 export class Flask extends Phaser.GameObjects.Container {
   private liquid: Phaser.GameObjects.Graphics
+  private sprite?: Phaser.GameObjects.Image
+  private brighten = 0 // 0..1, how far the liquid is blended towards white (mix animation)
   // The body circle in canvas pixels, from the image numbers above
   private cx: number
   private cy: number
@@ -48,12 +51,42 @@ export class Flask extends Phaser.GameObjects.Container {
     // The see-through copy if it was made, else the original, else just an outline circle
     const key = [CLEAR_FLASK_KEY, 'mixing_flask'].find((k) => scene.textures.exists(k))
     if (key) {
-      this.add(scene.add.image(FLASK.x, FLASK.bottom, key).setOrigin(0.5, 1).setScale(scale))
+      this.sprite = scene.add.image(FLASK.x, FLASK.bottom, key).setOrigin(0.5, 1).setScale(scale)
+      this.add(this.sprite)
     } else {
       this.add(scene.add.circle(this.cx, this.cy, this.radius).setStrokeStyle(3, 0xf6e7c1))
     }
     this.liquid = scene.add.graphics()
     this.add(this.liquid)
+  }
+
+  // The round body in canvas pixels, the current liquid color and where its surface is. The mix
+  // animation uses these to put its swirl and sparkles inside the liquid.
+  get bowl() {
+    return { x: this.cx, y: this.cy, radius: this.radius }
+  }
+  get liquidColor() {
+    return this.color
+  }
+  get liquidLevel() {
+    return this.level
+  }
+
+  // Canvas y of the liquid surface for a level 0..1
+  surfaceYAt(level: number): number {
+    return this.cy + this.radius - level * 2 * this.radius
+  }
+
+  // Warm tint for evening customers; plain white (no tint) in the morning
+  setEvening(evening: boolean) {
+    if (evening) this.sprite?.setTint(EVENING_TINT)
+    else this.sprite?.clearTint()
+  }
+
+  // 0..1: blends the liquid towards white and redraws it
+  setBrighten(amount: number) {
+    this.brighten = amount
+    this.drawAt(this.progress.t)
   }
 
   // level is 0..1 (drops / MAX_DROPS), as a fraction of the round body. A null color keeps the
@@ -87,7 +120,8 @@ export class Flask extends Phaser.GameObjects.Container {
     if (this.level < 0.005) return
 
     const { cx, cy, radius } = this
-    this.liquid.fillStyle(this.color, LIQUID_ALPHA)
+    const shown = lerpColor(this.color, 0xffffff, this.brighten)
+    this.liquid.fillStyle(shown, LIQUID_ALPHA)
     if (this.level > 0.995) {
       this.liquid.fillCircle(cx, cy, radius)
       return
@@ -95,7 +129,7 @@ export class Flask extends Phaser.GameObjects.Container {
 
     // The surface line is level * 2R above the bottom of the circle. dy is its offset from the
     // center (+ below, - above). The liquid is the arc below that line, closed by a chord.
-    const surfaceY = cy + radius - this.level * 2 * radius
+    const surfaceY = this.surfaceYAt(this.level)
     const dy = surfaceY - cy
     const angle = Math.asin(dy / radius) // where the line meets the circle on the right side
     this.liquid.beginPath()
@@ -105,7 +139,7 @@ export class Flask extends Phaser.GameObjects.Container {
 
     // A lighter, flat ellipse on the surface so the liquid reads as a volume
     const chord = 2 * Math.sqrt(radius * radius - dy * dy)
-    this.liquid.fillStyle(lerpColor(this.color, 0xffffff, SURFACE.lighten), SURFACE.alpha)
+    this.liquid.fillStyle(lerpColor(shown, 0xffffff, SURFACE.lighten), SURFACE.alpha)
     this.liquid.fillEllipse(cx, surfaceY, chord, chord * SURFACE.flatness)
   }
 }

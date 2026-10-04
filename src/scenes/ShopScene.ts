@@ -218,8 +218,9 @@ export class ShopScene extends Phaser.Scene {
     this.orderView.setVisible(phase === 'order')
     this.reactView.setVisible(phase === 'react')
     if (phase === 'mix') {
-      this.mixView.show(this.state.order)
-      this.mixEvening.show(this.state.timeOfDay === 'evening')
+      const evening = this.state.timeOfDay === 'evening'
+      this.mixView.show(this.state.order, evening)
+      this.mixEvening.show(evening)
     } else {
       this.mixView.hide()
       this.mixEvening.hide()

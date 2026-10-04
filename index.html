@@ -7,7 +7,10 @@
     <title>Attar</title>
     <style>
       /* Fill the window and center the game canvas; Phaser does the scaling */
-      html, body { margin: 0; height: 100%; background: #1a1210; }
+      /* overflow hidden: the page must never scroll; the canvas is display:block so it adds no stray line gap */
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1210; }
+      #game { width: 100%; height: 100%; }
+      canvas { display: block; }
     </style>
   </head>
   <body>

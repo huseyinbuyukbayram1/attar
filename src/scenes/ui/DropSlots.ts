@@ -7,15 +7,14 @@ import type { Tooltip } from './Tooltip'
 
 // Layout: one row of MAX_DROPS circles under the flask, on the dark front face of the counter
 const ROW = { firstX: 340, spacing: 36, y: 662, radius: 15 }
-const SHAKE_PX = 6
+const POP = { scale: 1.25, ms: 150 } // a slot pops when a drop arrives
 const TOOLTIP_GAP = 6 // space between the top of a slot and its tooltip
 
 // The six drop slots. Filled slots show the ingredient color; hovering one shows its name, and
 // clicking a filled slot empties just that one. It is a Container so shake() can wiggle the row.
 export class DropSlots extends Phaser.GameObjects.Container {
-  private filled: Phaser.GameObjects.Arc[] = [] // redrawn on every change
+  private filled: (Phaser.GameObjects.Arc | null)[] = [] // one entry per slot, redrawn on every change
   private current: (string | null)[] = []
-  private shaking = false
 
   constructor(scene: Phaser.Scene, tooltip: Tooltip, onSlotClick: (index: number) => void) {
     super(scene, 0, 0)
@@ -46,10 +45,13 @@ export class DropSlots extends Phaser.GameObjects.Container {
   // Redraws from scratch: simplest way to stay in sync. A null entry is an empty slot.
   setSlots(slots: (string | null)[]) {
     this.current = slots
-    this.filled.forEach((dot) => dot.destroy())
+    this.filled.forEach((dot) => dot?.destroy())
     this.filled = []
     slots.forEach((id, i) => {
-      if (id === null) return
+      if (id === null) {
+        this.filled.push(null)
+        return
+      }
       const color = INGREDIENT_COLORS[id] ?? FALLBACK_COLOR
       const dot = this.scene.add.circle(this.slotX(i), ROW.y, ROW.radius, color).setStrokeStyle(2, CREAM)
       this.add(dot)
@@ -57,21 +59,12 @@ export class DropSlots extends Phaser.GameObjects.Container {
     })
   }
 
-  // Tiny wiggle for "the flask is full". The flag stops repeated clicks from stacking
-  // tweens, which would leave the row slightly off position.
-  shake() {
-    if (this.shaking) return
-    this.shaking = true
-    this.scene.tweens.add({
-      targets: this,
-      x: `+=${SHAKE_PX}`,
-      duration: 50,
-      yoyo: true,
-      repeat: 1,
-      onComplete: () => {
-        this.shaking = false
-      },
-    })
+  // The filled circle of one slot grows a little and settles back, to show a drop landed
+  pop(index: number) {
+    const dot = this.filled[index]
+    if (!dot) return
+    dot.setScale(POP.scale)
+    this.scene.tweens.add({ targets: dot, scale: 1, duration: POP.ms, ease: 'Sine.easeOut' })
   }
 
   private slotX(index: number): number {
