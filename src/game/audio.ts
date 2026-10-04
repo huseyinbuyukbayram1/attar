@@ -26,12 +26,16 @@ const VOLUME: Record<SoundEvent, number> = {
   ambienceMorning: 0.15,
   ambienceEvening: 0.15,
   bottle: 0.5,
-  pour: 0.5,
+  pour: 0.2, // was 0.5, quietened to 40 percent
   mix: 0.5,
   smell: 0.5,
-  deliver: 0.6,
+  deliver: 0.8,
   click: 0.4,
 }
+// The pour file is longer than the pour animation, so it is cut short while playing (the file
+// itself is not edited): it ends POUR_SOUND_MS after it starts, the last POUR_FADE_MS fading out.
+const POUR_SOUND_MS = 550
+const POUR_FADE_MS = 150
 const AMBIENCE_FADE_MS = 1500 // same as the morning/evening crossfade of the picture
 const MUTE_KEY = 'keydown-M'
 
@@ -99,7 +103,22 @@ export class SoundManager {
   play(event: SoundEvent) {
     const key = keyOf(event)
     if (!this.scene.cache.audio.exists(key)) return
+    if (event === 'pour') {
+      this.playCutShort(key, VOLUME[event])
+      return
+    }
     this.scene.sound.play(key, { volume: VOLUME[event] })
+  }
+
+  // Plays a sound, fades it out at the end of POUR_SOUND_MS and removes it
+  private playCutShort(key: string, volume: number) {
+    const sound = this.scene.sound.add(key, { volume }) as Phaser.Sound.BaseSound & { volume: number }
+    sound.once('complete', () => sound.destroy()) // the file was shorter than the cut: nothing to fade
+    sound.play()
+    this.scene.time.delayedCall(POUR_SOUND_MS - POUR_FADE_MS, () => {
+      if (!sound.isPlaying) return
+      this.scene.tweens.add({ targets: sound, volume: 0, duration: POUR_FADE_MS, onComplete: () => sound.destroy() })
+    })
   }
 
   // Called when the scene shuts down: stop the loops and the key listener

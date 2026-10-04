@@ -308,7 +308,7 @@ export class ShopScene extends Phaser.Scene {
     const payout = payoutFor(score.stars)
     state.addStars(score.stars)
     state.addMoney(payout)
-    this.sounds.play('deliver')
+    if (payout > 0) this.sounds.play('deliver') // no money, no happy sound
     this.updateHud()
     const stars = '★'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
     this.speech.setText(`${stars}\n${REACTIONS[score.stars]}\n+${formatMoney(payout)}`)
