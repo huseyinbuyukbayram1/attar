@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { ORDERS } from '../data/customers'
+import { makeClearFlaskTexture } from './ui/clearFlaskTexture'
 
 // Loads all assets up front so later scenes can use them instantly, then shows the intro.
 export class BootScene extends Phaser.Scene {
@@ -17,8 +18,13 @@ export class BootScene extends Phaser.Scene {
 
     // Real art is loaded by file name from public/assets/, so swapping art needs no code change
     this.load.image('shop_morning', 'assets/backgrounds/shop_morning.jpg')
-    // Optional art for the mixing phase; without it ShopScene dims the shop background instead
+    // Background of the MIX phase
     this.load.image('counter_view', 'assets/backgrounds/counter_view.jpg')
+    // Bottle sprites for the MIX phase (a missing file falls back to plain shapes)
+    this.load.image('bottle_round', 'assets/bottles/bottle_round.png')
+    this.load.image('bottle_dropper', 'assets/bottles/bottle_dropper.png')
+    this.load.image('bottle_square', 'assets/bottles/bottle_square.png')
+    this.load.image('mixing_flask', 'assets/bottles/mixing_flask.png')
     // Optional art for the two endings; without it EndingScene uses the shop background with an overlay
     this.load.image('ending_win', 'assets/backgrounds/ending_win.jpg')
     this.load.image('ending_lose', 'assets/backgrounds/ending_lose.jpg')
@@ -32,6 +38,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    makeClearFlaskTexture(this) // see-through version of the flask picture, used by the MIX view
     this.scene.start('IntroScene')
   }
 

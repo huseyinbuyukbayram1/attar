@@ -1,61 +1,51 @@
 import Phaser from 'phaser'
 import type { Order } from '../../data/customers'
-import { INGREDIENT_COLORS, FALLBACK_COLOR } from '../../data/ingredientColors'
 import { INGREDIENTS } from '../../data/ingredients'
+import { MAX_SMELLS } from '../../game/gameState'
 import type { GameState } from '../../game/gameState'
 import { MAX_DROPS } from '../../game/scoring'
 import { Bottle } from './Bottle'
+import type { BottleLayout } from './Bottle'
 import { Button } from './Button'
 import { DropSlots } from './DropSlots'
+import { Flask } from './Flask'
 import { averageColor } from './liquidColor'
-import { MixingVial } from './MixingVial'
-import { addPanel, BORDER, FONT, TEXT_COLOR } from './theme'
-import { MAX_SMELLS } from '../../game/gameState'
+import { addPanel, FONT, TEXT_COLOR } from './theme'
+import { Tooltip } from './Tooltip'
 
-// Layout numbers for the 1280x720 screen
+// Layout numbers for the 1280x720 screen. In counter_view the counter's top surface (light
+// wood) spans y 524..620; below that is the dark front face. Things stand on the surface.
 const REMINDER = { x: 640, y: 90, width: 760, height: 64 }
-const VIAL = { x: 640, y: 290, width: 120, height: 230 }
-// One position per ingredient, in INGREDIENTS order: 5 on the left of the vial, 5 on the right
-const BOTTLE_POSITIONS = [
-  { x: 150, y: 250 }, { x: 270, y: 250 }, { x: 390, y: 250 }, { x: 210, y: 420 }, { x: 330, y: 420 },
-  { x: 890, y: 250 }, { x: 1010, y: 250 }, { x: 1130, y: 250 }, { x: 950, y: 420 }, { x: 1070, y: 420 },
-]
-const BUTTONS_Y = 600
-const BUTTON_HEIGHT = 56
-const CLEAR = { x: 500, width: 150 }
-const SMELL = { x: 700, width: 260 }
-const DELIVER = SMELL // out of smells, "Deliver" takes the place of "Let them smell"
-const NO_SMELLS_NOTE = { y: 654, width: 330, height: 30 } // small line under that button
 
-// Drop flight: a small circle arcs from the bottle's mouth to just above the vial
-const DROP_MS = 400
-const DROP_RADIUS = 9
-const DROP_ARC_PX = 90 // how far above the higher end point the arc peaks
-const VIAL_MOUTH_Y = VIAL.y - VIAL.height / 2 - 10
+// Two rows of bottles to the right of the flask (the brass scale and alembic are at x < 285).
+// The front row is shifted by half a spacing, so a label never hides a bottle.
+const BOTTLES_PER_ROW = 5
+const BACK_ROW = { firstX: 625, spacing: 145, bottom: 552, height: 80 }
+const FRONT_ROW = { firstX: 552, spacing: 145, bottom: 610, height: 92 }
+// The three bottle shapes rotate in this fixed order over the ten ingredients
+const BOTTLE_TEXTURES = ['bottle_round', 'bottle_dropper', 'bottle_square']
+
+// Buttons on the dark front face, bottom right
+const SMELL = { x: 950, y: 680, width: 200, height: 44 } // "Deliver" takes its place when out of smells
+const DELIVER = SMELL
+const CLEAR = { x: 1150, y: 680, width: 120, height: 44 }
+const NO_SMELLS_NOTE = { x: 700, y: 680, width: 280, height: 28 } // small line just left of that button
 
 type Callbacks = { onSmell: () => void; onDeliver: () => void }
 
-type Flight = { sprite: Phaser.GameObjects.Arc; tween: Phaser.Tweens.Tween }
-
-// Phase MIX: the counter view. Bottles to pick from, the vial with its six slots, and the
-// buttons. The GameState is updated the moment a bottle is clicked (so fast clicking can't
-// overfill the vial); what is DRAWN catches up when the flying drop arrives.
+// Phase MIX: the counter view. Bottles to pick from, the flask with its six slots, and the
+// buttons. The GameState is updated the moment a bottle is clicked; the drawing follows at once.
 export class MixView {
   private root: Phaser.GameObjects.Container
   private state: GameState
   private reminderText: Phaser.GameObjects.Text
-  private vial: MixingVial
+  private flask: Flask
   private slots: DropSlots
   private clearButton: Button
   private smellButton: Button
   private deliverButton: Button
   private noSmellsNote: Phaser.GameObjects.Container
-
   private active = false
-  private flights: Flight[] = []
-  // Per slot: the id of the drop still flying towards it, or 0. Such a slot is drawn empty.
-  private pending: number[] = new Array<number>(MAX_DROPS).fill(0)
-  private nextFlightId = 1
 
   constructor(scene: Phaser.Scene, state: GameState, callbacks: Callbacks) {
     this.state = state
@@ -72,34 +62,41 @@ export class MixView {
       .setOrigin(0.5)
     this.root.add([addPanel(scene, REMINDER.x, REMINDER.y, REMINDER.width, REMINDER.height, 24), this.reminderText])
 
+    // Added in this order, so the back row is behind the front row, and the flask is above both
+    const tooltip = new Tooltip(scene)
     INGREDIENTS.forEach((ingredient, i) => {
-      const spot = BOTTLE_POSITIONS[i]
-      this.root.add(
-        new Bottle(scene, spot.x, spot.y, ingredient, (fromX, fromY) => this.pick(ingredient.id, fromX, fromY)),
-      )
+      const row = i < BOTTLES_PER_ROW ? BACK_ROW : FRONT_ROW
+      const layout: BottleLayout = {
+        x: row.firstX + (i % BOTTLES_PER_ROW) * row.spacing,
+        bottom: row.bottom,
+        height: row.height,
+      }
+      const textureKey = BOTTLE_TEXTURES[i % BOTTLE_TEXTURES.length]
+      this.root.add(new Bottle(scene, layout, textureKey, ingredient, tooltip, () => this.pick(ingredient.id)))
     })
 
-    this.vial = new MixingVial(scene, VIAL.x, VIAL.y, VIAL.width, VIAL.height)
-    this.slots = new DropSlots(scene, (index) => this.emptySlot(index))
-    this.clearButton = new Button(scene, CLEAR.x, BUTTONS_Y, CLEAR.width, BUTTON_HEIGHT, 'Clear', () => this.clear())
-    this.smellButton = new Button(scene, SMELL.x, BUTTONS_Y, SMELL.width, BUTTON_HEIGHT, 'Let them smell', () => {
+    this.flask = new Flask(scene)
+    this.slots = new DropSlots(scene, tooltip, (index) => this.emptySlot(index))
+    this.clearButton = new Button(scene, CLEAR.x, CLEAR.y, CLEAR.width, CLEAR.height, 'Clear', () => this.clear())
+    this.smellButton = new Button(scene, SMELL.x, SMELL.y, SMELL.width, SMELL.height, 'Let them smell', () => {
       if (this.active && this.state.canSmell()) callbacks.onSmell()
     })
-    this.deliverButton = new Button(scene, DELIVER.x, BUTTONS_Y, DELIVER.width, BUTTON_HEIGHT, 'Deliver', () => {
+    this.deliverButton = new Button(scene, DELIVER.x, DELIVER.y, DELIVER.width, DELIVER.height, 'Deliver', () => {
       if (this.active && this.state.canDeliver()) callbacks.onDeliver()
     })
     const noteText = scene.add
-      .text(DELIVER.x, NO_SMELLS_NOTE.y, 'No smells left: trust your nose.', {
+      .text(NO_SMELLS_NOTE.x, NO_SMELLS_NOTE.y, 'No smells left: trust your nose.', {
         fontFamily: FONT,
-        fontSize: '16px',
+        fontSize: '14px',
         color: TEXT_COLOR,
       })
       .setOrigin(0.5)
     this.noSmellsNote = scene.add.container(0, 0, [
-      addPanel(scene, DELIVER.x, NO_SMELLS_NOTE.y, NO_SMELLS_NOTE.width, NO_SMELLS_NOTE.height, 15),
+      addPanel(scene, NO_SMELLS_NOTE.x, NO_SMELLS_NOTE.y, NO_SMELLS_NOTE.width, NO_SMELLS_NOTE.height, 13),
       noteText,
     ])
-    this.root.add([this.vial, this.slots, this.clearButton, this.smellButton, this.deliverButton, this.noSmellsNote])
+    // The tooltip goes last so it is drawn above everything, including the flask
+    this.root.add([this.flask, this.slots, this.clearButton, this.smellButton, this.deliverButton, this.noSmellsNote, tooltip])
     this.root.setVisible(false)
   }
 
@@ -107,99 +104,40 @@ export class MixView {
   show(order: Order) {
     this.active = true
     this.reminderText.setText(`${order.customerName}: ${order.orderText}`)
-    this.cancelFlights()
     this.refresh(false)
     this.root.setVisible(true)
   }
 
   hide() {
     this.active = false
-    this.cancelFlights() // the state already holds those drops; show() will draw them
     this.root.setVisible(false)
   }
 
-  private pick(id: string, fromX: number, fromY: number) {
+  private pick(id: string) {
     if (!this.active) return
-    const slot = this.state.addDrop(id)
-    if (slot === -1) {
+    if (this.state.addDrop(id) === -1) {
       this.slots.shake() // full: no drop
       return
     }
-    // The slot is taken in the state right now, but drawn empty until the drop lands
-    const flightId = this.nextFlightId++
-    this.pending[slot] = flightId
-    this.refreshButtons()
-    this.fly(slot, flightId, id, fromX, fromY)
-  }
-
-  private fly(slot: number, flightId: number, id: string, fromX: number, fromY: number) {
-    const sprite = this.root.scene.add
-      .circle(fromX, fromY, DROP_RADIUS, INGREDIENT_COLORS[id] ?? FALLBACK_COLOR)
-      .setStrokeStyle(2, BORDER)
-    this.root.add(sprite)
-
-    // Quadratic Bezier: start, one control point high above, end. t runs 0 -> 1.
-    const endX = VIAL.x
-    const controlX = (fromX + endX) / 2
-    const controlY = Math.min(fromY, VIAL_MOUTH_Y) - DROP_ARC_PX
-    const progress = { t: 0 }
-    const tween = this.root.scene.tweens.add({
-      targets: progress,
-      t: 1,
-      duration: DROP_MS,
-      ease: 'Sine.easeInOut',
-      onUpdate: () => {
-        const t = progress.t
-        const u = 1 - t
-        sprite.x = u * u * fromX + 2 * u * t * controlX + t * t * endX
-        sprite.y = u * u * fromY + 2 * u * t * controlY + t * t * VIAL_MOUTH_Y
-      },
-      onComplete: () => {
-        sprite.destroy()
-        this.flights = this.flights.filter((flight) => flight.sprite !== sprite)
-        // Only draw the landing if this slot was not emptied or refilled in the meantime
-        if (this.pending[slot] === flightId) {
-          this.pending[slot] = 0
-          this.refresh(true)
-        }
-      },
-    })
-    this.flights.push({ sprite, tween })
+    this.refresh(true)
   }
 
   private emptySlot(index: number) {
-    // A slot whose drop is still flying can't be removed yet
-    if (!this.active || this.state.slots[index] === null || this.pending[index] !== 0) return
+    if (!this.active || this.state.slots[index] === null) return
     this.state.removeSlot(index)
     this.refresh(true)
   }
 
   private clear() {
     if (!this.active) return
-    this.cancelFlights()
     this.state.clear()
     this.refresh(true)
   }
 
-  private cancelFlights() {
-    for (const flight of this.flights) {
-      flight.tween.stop()
-      flight.sprite.destroy()
-    }
-    this.flights = []
-    this.pending.fill(0)
-  }
-
-  // What is shown: the state's slots, minus drops that have not landed yet
-  private shownSlots(): (string | null)[] {
-    return this.state.slots.map((id, i) => (this.pending[i] === 0 ? id : null))
-  }
-
   private refresh(animate: boolean) {
-    const shown = this.shownSlots()
-    const ids = shown.filter((id): id is string => id !== null)
-    this.slots.setSlots(shown)
-    this.vial.setTarget(ids.length / MAX_DROPS, ids.length > 0 ? averageColor(ids) : null, animate)
+    const ids = this.state.drops
+    this.slots.setSlots(this.state.slots)
+    this.flask.setTarget(ids.length / MAX_DROPS, ids.length > 0 ? averageColor(ids) : null, animate)
     this.refreshButtons()
   }
 

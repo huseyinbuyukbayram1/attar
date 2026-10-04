@@ -2,62 +2,63 @@ import Phaser from 'phaser'
 import { FALLBACK_COLOR, INGREDIENT_COLORS } from '../../data/ingredientColors'
 import { INGREDIENTS } from '../../data/ingredients'
 import { MAX_DROPS } from '../../game/scoring'
-import { addPanel, BORDER, FONT, TEXT_COLOR } from './theme'
+import { CREAM } from './theme'
+import type { Tooltip } from './Tooltip'
 
-// Layout: one row of MAX_DROPS circles on a cream strip, under the vial
-const PANEL = { x: 640, y: 462, height: 84 }
-const SPACING = 56
-const RADIUS = 16
-const SLOT_OFFSET_Y = -8 // circles sit above the middle so the name fits under them
-const NAME_GAP = 12 // space between the bottom of a circle and its name
+// Layout: one row of MAX_DROPS circles under the flask, on the dark front face of the counter
+const ROW = { firstX: 340, spacing: 36, y: 662, radius: 15 }
 const SHAKE_PX = 6
+const TOOLTIP_GAP = 6 // space between the top of a slot and its tooltip
 
-// The six drop slots. Filled slots show the ingredient color and name; clicking a filled
-// slot empties just that one. It is a Container so shake() can wiggle the whole strip.
+// The six drop slots. Filled slots show the ingredient color; hovering one shows its name, and
+// clicking a filled slot empties just that one. It is a Container so shake() can wiggle the row.
 export class DropSlots extends Phaser.GameObjects.Container {
-  private filled: Phaser.GameObjects.GameObject[] = [] // redrawn on every change
+  private filled: Phaser.GameObjects.Arc[] = [] // redrawn on every change
+  private current: (string | null)[] = []
   private shaking = false
 
-  constructor(scene: Phaser.Scene, onSlotClick: (index: number) => void) {
+  constructor(scene: Phaser.Scene, tooltip: Tooltip, onSlotClick: (index: number) => void) {
     super(scene, 0, 0)
     scene.add.existing(this)
-    this.add(addPanel(scene, PANEL.x, PANEL.y, MAX_DROPS * SPACING + 20, PANEL.height, 20))
 
-    // The empty outlines are the clickable part; the colored circles drawn on top are not
-    // interactive, so clicks fall through to the outline underneath.
+    // The empty outlines are the interactive part; the colored circles drawn on top are not,
+    // so clicks and hovers fall through to the outline underneath.
     for (let i = 0; i < MAX_DROPS; i++) {
       const outline = scene.add
-        .circle(this.slotX(i), this.slotY(), RADIUS)
-        .setStrokeStyle(2, BORDER, 0.5)
+        .circle(this.slotX(i), ROW.y, ROW.radius)
+        .setStrokeStyle(2, CREAM, 0.6)
         .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => onSlotClick(i))
+      outline.on('pointerdown', () => {
+        tooltip.hide() // the slot is about to be emptied
+        onSlotClick(i)
+      })
+      outline.on('pointerover', () => {
+        const id = this.current[i]
+        if (!id) return
+        const name = INGREDIENTS.find((ingredient) => ingredient.id === id)?.name ?? id
+        tooltip.show(name, this.slotX(i), ROW.y - ROW.radius - TOOLTIP_GAP)
+      })
+      outline.on('pointerout', () => tooltip.hide())
       this.add(outline)
     }
   }
 
   // Redraws from scratch: simplest way to stay in sync. A null entry is an empty slot.
   setSlots(slots: (string | null)[]) {
-    this.filled.forEach((object) => object.destroy())
+    this.current = slots
+    this.filled.forEach((dot) => dot.destroy())
     this.filled = []
     slots.forEach((id, i) => {
       if (id === null) return
       const color = INGREDIENT_COLORS[id] ?? FALLBACK_COLOR
-      const name = INGREDIENTS.find((ingredient) => ingredient.id === id)?.name ?? id
-      const dot = this.scene.add.circle(this.slotX(i), this.slotY(), RADIUS, color).setStrokeStyle(2, BORDER)
-      const label = this.scene.add
-        .text(this.slotX(i), this.slotY() + RADIUS + NAME_GAP, name, {
-          fontFamily: FONT,
-          fontSize: '12px',
-          color: TEXT_COLOR,
-        })
-        .setOrigin(0.5)
-      this.add([dot, label])
-      this.filled.push(dot, label)
+      const dot = this.scene.add.circle(this.slotX(i), ROW.y, ROW.radius, color).setStrokeStyle(2, CREAM)
+      this.add(dot)
+      this.filled.push(dot)
     })
   }
 
-  // Tiny wiggle for "the vial is full". The flag stops repeated clicks from stacking
-  // tweens, which would leave the strip slightly off position.
+  // Tiny wiggle for "the flask is full". The flag stops repeated clicks from stacking
+  // tweens, which would leave the row slightly off position.
   shake() {
     if (this.shaking) return
     this.shaking = true
@@ -74,10 +75,6 @@ export class DropSlots extends Phaser.GameObjects.Container {
   }
 
   private slotX(index: number): number {
-    return PANEL.x - ((MAX_DROPS - 1) * SPACING) / 2 + index * SPACING
-  }
-
-  private slotY(): number {
-    return PANEL.y + SLOT_OFFSET_Y
+    return ROW.firstX + index * ROW.spacing
   }
 }

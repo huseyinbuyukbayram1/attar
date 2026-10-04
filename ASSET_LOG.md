@@ -33,3 +33,4 @@ Findings for the devlog:
 - [ ] Remove the hanging rope/tassel and the lit candle from shop_evening.
 - [ ] Optional: remove the blue tile medallion from shop_morning (web app edit step failed).
 - [ ] Replace the realistic customer portraits (Leyla, Mr. Orhan, Selim) with stylized versions.
+- [ ] Idea: finishing step on delivery, a short skippable 3 s animation (oil or alcohol poured into the flask, shake, pour into the round bottle, cork, "For <name>" label). Zero credits, only if time remains.

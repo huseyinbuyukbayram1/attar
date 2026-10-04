@@ -10,6 +10,7 @@ import { addCounterCrop } from './ui/counterCrop'
 import { ContactSheet } from './ui/ContactSheet'
 import { DayCard } from './ui/DayCard'
 import { EveningOverlay } from './ui/EveningOverlay'
+import { MixEvening } from './ui/MixEvening'
 import { MixView } from './ui/MixView'
 import { OrderView } from './ui/OrderView'
 import { ReactView } from './ui/ReactView'
@@ -32,8 +33,9 @@ const DEPTH = {
   counter: -70, // morning counter crop
   eveningCounter: -60, // evening-tinted counter crop
   mixBackdrop: -50, // only shown in the MIX phase
+  mixEvening: -40, // evening look over the mix backdrop, behind the bottles and flask
 }
-const DIM = { color: 0x2a1a10, alpha: 0.45 } // warm dark veil over the shop in the mix phase
+const MIX_FALLBACK_COLOR = 0x2a1a10 // plain warm brown if counter_view.jpg is missing
 const FADE_COLOR = 0x1a1210
 const FADE_DEPTH = 1000 // above everything, so the transition covers the whole screen
 
@@ -68,6 +70,7 @@ export class ShopScene extends Phaser.Scene {
   private speech!: SpeechBox
   private orderView!: OrderView
   private mixView!: MixView
+  private mixEvening!: MixEvening
   private reactView!: ReactView
   private hud!: Phaser.GameObjects.Text
   private dayCard!: DayCard
@@ -103,6 +106,7 @@ export class ShopScene extends Phaser.Scene {
       COUNTER_TOP_Y,
     )
     this.addMixBackdrop()
+    this.mixEvening = new MixEvening(this, 'counter_view', DEPTH.mixEvening)
 
     addPillLabel(this, TITLE.x, TITLE.y, TITLE.width, TITLE.height, 'Attar', 32)
     this.hud = addPillLabel(this, HUD.x, HUD.y, HUD.width, HUD.height, '', 18)
@@ -213,8 +217,13 @@ export class ShopScene extends Phaser.Scene {
     this.mixBackdrop.forEach((layer) => layer.setVisible(phase === 'mix'))
     this.orderView.setVisible(phase === 'order')
     this.reactView.setVisible(phase === 'react')
-    if (phase === 'mix') this.mixView.show(this.state.order)
-    else this.mixView.hide()
+    if (phase === 'mix') {
+      this.mixView.show(this.state.order)
+      this.mixEvening.show(this.state.timeOfDay === 'evening')
+    } else {
+      this.mixView.hide()
+      this.mixEvening.hide()
+    }
   }
 
   // Entering REACT from MIX: the customer smells (this uses up one smell) and comments
@@ -251,8 +260,8 @@ export class ShopScene extends Phaser.Scene {
     })
   }
 
-  // Backdrop for the MIX phase: the optional counter_view art if it loaded, otherwise a warm
-  // dark veil over the shop background so the UI on top stays readable
+  // Backdrop for the MIX phase: the counter_view picture, full screen. If it failed to load,
+  // a plain brown rectangle, so the cream UI on top stays readable.
   private addMixBackdrop() {
     const { width, height } = this.scale
     if (this.textures.exists('counter_view')) {
@@ -260,8 +269,9 @@ export class ShopScene extends Phaser.Scene {
         this.add.image(width / 2, height / 2, 'counter_view').setDisplaySize(width, height).setDepth(DEPTH.mixBackdrop),
       )
     } else {
+      console.warn('Texture "counter_view" missing, using a colored rectangle')
       this.mixBackdrop.push(
-        this.add.rectangle(width / 2, height / 2, width, height, DIM.color, DIM.alpha).setDepth(DEPTH.mixBackdrop),
+        this.add.rectangle(width / 2, height / 2, width, height, MIX_FALLBACK_COLOR).setDepth(DEPTH.mixBackdrop),
       )
     }
   }
@@ -281,7 +291,14 @@ export class ShopScene extends Phaser.Scene {
   // G opens a contact sheet of all ten customers, E toggles evening in it.
   // All of it is ignored while a phase transition runs.
   private addDevKeys() {
-    this.devLabel = addPillLabel(this, 91, this.scale.height - 26, 150, 20, '', 12)
+    // Plain small text in the bottom-left corner, clear of the buttons
+    this.devLabel = this.add.text(16, 700, '', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '12px',
+      color: '#f6e7c1',
+      stroke: '#1a1210',
+      strokeThickness: 3,
+    })
     this.sheet = new ContactSheet(this, {
       backgroundKey: 'shop_morning',
       counterTopY: COUNTER_TOP_Y,
