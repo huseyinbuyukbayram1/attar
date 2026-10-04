@@ -24,9 +24,9 @@ const AUDIO_FOLDER = 'assets/audio/'
 // Ambience is kept low so it never covers the effects
 const VOLUME: Record<SoundEvent, number> = {
   ambienceMorning: 0.15,
-  ambienceEvening: 0.15,
+  ambienceEvening: 0.12,
   bottle: 0.5,
-  pour: 0.2, // was 0.5, quietened to 40 percent
+  pour: 0.35, // 70 percent of the original 0.5
   mix: 0.5,
   smell: 0.5,
   deliver: 0.8,

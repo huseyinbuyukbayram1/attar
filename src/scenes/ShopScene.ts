@@ -202,6 +202,7 @@ export class ShopScene extends Phaser.Scene {
     this.speech.setSpeaker(state.order.customerName)
     this.speech.setText(state.order.orderText)
     this.devLabel?.setText(`dev: ${state.order.id}`) // TEMP: remove before release
+    this.mixView.resetStirred()
     this.applyPhase('order')
     this.speech.setAlpha(0)
     this.orderView.setAlpha(0)
@@ -254,12 +255,13 @@ export class ShopScene extends Phaser.Scene {
   // then back to the customer for the result. Clicks are blocked all along.
   private deliverFromReact() {
     if (this.busy) return
-    if (!FINAL_MIX_ENABLED) {
+    this.sounds.play('click')
+    // Same mix as the last stir (or the final stir is off): score at once
+    if (!FINAL_MIX_ENABLED || this.mixView.isStirred()) {
       this.deliver()
       return
     }
     this.busy = true
-    this.sounds.play('click')
     this.reactView.hideButtons()
     this.fadeSwitch('mix', undefined, () =>
       this.mixView.stir(() =>

@@ -57,6 +57,10 @@ export class MixView {
   private deliverButton: Button
   private noSmellsNote: Phaser.GameObjects.Container
   private active = false
+  // The mix as it was when the mix animation last played; null for a new customer. Delivering a
+  // mix that has not changed since skips the final stir. Kept here, not in GameState: it is only
+  // a visual detail.
+  private lastStirredMix: string | null = null
   private busy = false // true while a pour or the mix animation plays: input is ignored
   private tooltip: Tooltip
   private onSound: (event: SoundEvent) => void
@@ -104,7 +108,7 @@ export class MixView {
     this.deliverButton = new Button(scene, DELIVER.x, DELIVER.y, DELIVER.width, DELIVER.height, 'Deliver', () => {
       if (!this.active || this.busy || !this.state.canDeliver()) return
       // Final stir before the score, unless it is switched off
-      if (FINAL_MIX_ENABLED) this.stir(callbacks.onDeliver)
+      if (FINAL_MIX_ENABLED && !this.isStirred()) this.stir(callbacks.onDeliver)
       else callbacks.onDeliver()
     })
     const noteText = scene.add
@@ -141,6 +145,22 @@ export class MixView {
   }
 
   // The state changes right here, at click time. The pour that follows is only a picture of it.
+  // The filled slots' ingredient ids, sorted and joined: the same drops give the same text
+  // whatever slots they sit in
+  private mixSignature(): string {
+    return [...this.state.drops].sort().join(',')
+  }
+
+  // True if the mix is the same as the last one that was stirred
+  isStirred(): boolean {
+    return this.lastStirredMix === this.mixSignature()
+  }
+
+  // A new customer starts with nothing stirred
+  resetStirred() {
+    this.lastStirredMix = null
+  }
+
   private pick(id: string, bottle: Bottle) {
     if (!this.active || this.busy) return // one pour at a time, extra clicks are dropped
     const index = this.state.addDrop(id)
@@ -185,6 +205,7 @@ export class MixView {
   stir(onDone: () => void) {
     if (!this.active) return
     this.busy = true
+    this.lastStirredMix = this.mixSignature()
     this.tooltip.hide()
     this.onSound('mix')
     playMixAnimation(this.scene, this.flask, () => {
