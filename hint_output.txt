@@ -1,0 +1,331 @@
+
+> attar-game@0.0.0 hint-demo
+> npx --yes tsx scripts/hintDemo.ts
+
+
+=== asphalt (Leyla): "Something like warm asphalt right after the rain."
+Target: floral 0.00, woody 0.50, citrus 0.33, sweet 0.00, spicy 0.17
+  GOOD  known good recipe
+    drops:  Bergamot, Cedar, Oud
+    mix:    floral 0.00, woody 0.50, citrus 0.30, sweet 0.00, spicy 0.20
+    distance 0.033, stars 3, hint: "That is exactly it."
+  (a) remove one drop
+    drops:  Bergamot, Cedar
+    mix:    floral 0.00, woody 0.50, citrus 0.50, sweet 0.00, spicy 0.00
+    distance 0.167, stars 2, hint: "Lovely, but too citrus."
+  (b) extra Bergamot
+    drops:  Bergamot, Cedar, Oud, Bergamot
+    mix:    floral 0.00, woody 0.38, citrus 0.46, sweet 0.00, spicy 0.15
+    distance 0.128, stars 2, hint: "Lovely, but too citrus."
+  (c) one drop -> Vanilla
+    drops:  Bergamot, Cedar, Vanilla
+    mix:    floral 0.00, woody 0.33, citrus 0.33, sweet 0.33, spicy 0.00
+    distance 0.333, stars 1, hint: "Lovely, but too sweet."
+  (d) one drop -> Bergamot
+    drops:  Bergamot, Cedar, Bergamot
+    mix:    floral 0.00, woody 0.33, citrus 0.67, sweet 0.00, spicy 0.00
+    distance 0.333, stars 1, hint: "Lovely, but too citrus."
+  (e) one drop -> Cedar
+    drops:  Bergamot, Cedar, Cedar
+    mix:    floral 0.00, woody 0.67, citrus 0.33, sweet 0.00, spicy 0.00
+    distance 0.167, stars 2, hint: "It needs something spicy."
+  (f) 3 random drops
+    drops:  Vanilla, Cedar, Saffron
+    mix:    floral 0.00, woody 0.33, citrus 0.00, sweet 0.33, spicy 0.33
+    distance 0.500, stars 0, hint: "It needs something citrus."
+
+=== wardrobe (Mr. Orhan): "My grandfather's wardrobe, but in a good way."
+Target: floral 0.00, woody 0.60, citrus 0.00, sweet 0.20, spicy 0.20
+  GOOD  known good recipe
+    drops:  Cedar, Oud, Amber
+    mix:    floral 0.00, woody 0.60, citrus 0.00, sweet 0.20, spicy 0.20
+    distance 0.000, stars 3, hint: "That is exactly it."
+  (a) remove one drop
+    drops:  Cedar, Oud
+    mix:    floral 0.00, woody 0.71, citrus 0.00, sweet 0.00, spicy 0.29
+    distance 0.200, stars 2, hint: "It needs something sweet."
+  (b) extra Cedar
+    drops:  Cedar, Oud, Amber, Cedar
+    mix:    floral 0.00, woody 0.69, citrus 0.00, sweet 0.15, spicy 0.15
+    distance 0.092, stars 3, hint: "Lovely, but too woody."
+  (c) one drop -> Vanilla
+    drops:  Cedar, Oud, Vanilla
+    mix:    floral 0.00, woody 0.50, citrus 0.00, sweet 0.30, spicy 0.20
+    distance 0.100, stars 3, hint: "It needs something woody."
+  (d) one drop -> Bergamot
+    drops:  Cedar, Oud, Bergamot
+    mix:    floral 0.00, woody 0.50, citrus 0.30, sweet 0.00, spicy 0.20
+    distance 0.300, stars 1, hint: "Lovely, but too citrus."
+  (e) one drop -> Cedar
+    drops:  Cedar, Oud, Cedar
+    mix:    floral 0.00, woody 0.80, citrus 0.00, sweet 0.00, spicy 0.20
+    distance 0.200, stars 2, hint: "Lovely, but too woody."
+  (f) 3 random drops
+    drops:  Vanilla, Jasmine, Oud
+    mix:    floral 0.18, woody 0.18, citrus 0.00, sweet 0.45, spicy 0.18
+    distance 0.436, stars 0, hint: "It needs something woody."
+
+=== spring (Nida): "The first warm day of spring, window wide open."
+Target: floral 0.40, woody 0.00, citrus 0.40, sweet 0.20, spicy 0.00
+  GOOD  known good recipe
+    drops:  Jasmine, Neroli, Neroli
+    mix:    floral 0.40, woody 0.00, citrus 0.40, sweet 0.20, spicy 0.00
+    distance 0.000, stars 3, hint: "That is exactly it."
+  (a) remove one drop
+    drops:  Jasmine, Neroli
+    mix:    floral 0.43, woody 0.00, citrus 0.29, sweet 0.29, spicy 0.00
+    distance 0.114, stars 3, hint: "It needs something citrus."
+  (b) extra Neroli
+    drops:  Jasmine, Neroli, Neroli, Neroli
+    mix:    floral 0.38, woody 0.00, citrus 0.46, sweet 0.15, spicy 0.00
+    distance 0.062, stars 3, hint: "Lovely, but too citrus."
+  (c) one drop -> Vanilla
+    drops:  Jasmine, Neroli, Vanilla
+    mix:    floral 0.30, woody 0.00, citrus 0.20, sweet 0.50, spicy 0.00
+    distance 0.300, stars 1, hint: "Lovely, but too sweet."
+  (d) one drop -> Bergamot
+    drops:  Jasmine, Neroli, Bergamot
+    mix:    floral 0.30, woody 0.00, citrus 0.50, sweet 0.20, spicy 0.00
+    distance 0.100, stars 3, hint: "It needs something floral."
+  (e) one drop -> Cedar
+    drops:  Jasmine, Neroli, Cedar
+    mix:    floral 0.30, woody 0.30, citrus 0.20, sweet 0.20, spicy 0.00
+    distance 0.300, stars 1, hint: "Lovely, but too woody."
+  (f) 3 random drops
+    drops:  Bergamot, Vanilla, Saffron
+    mix:    floral 0.00, woody 0.00, citrus 0.33, sweet 0.33, spicy 0.33
+    distance 0.467, stars 0, hint: "It needs something floral."
+
+=== kitchen (Selim): "My grandmother's kitchen on a rainy Sunday."
+Target: floral 0.00, woody 0.20, citrus 0.00, sweet 0.60, spicy 0.20
+  GOOD  known good recipe
+    drops:  Oud, Vanilla, Vanilla
+    mix:    floral 0.00, woody 0.20, citrus 0.00, sweet 0.60, spicy 0.20
+    distance 0.000, stars 3, hint: "That is exactly it."
+  (a) remove one drop
+    drops:  Oud, Vanilla
+    mix:    floral 0.00, woody 0.29, citrus 0.00, sweet 0.43, spicy 0.29
+    distance 0.171, stars 2, hint: "It needs something sweet."
+  (b) extra Vanilla
+    drops:  Oud, Vanilla, Vanilla, Vanilla
+    mix:    floral 0.00, woody 0.15, citrus 0.00, sweet 0.69, spicy 0.15
+    distance 0.092, stars 3, hint: "Lovely, but too sweet."
+  (c) one drop -> Vanilla
+    drops:  Vanilla, Vanilla, Vanilla
+    mix:    floral 0.00, woody 0.00, citrus 0.00, sweet 1.00, spicy 0.00
+    distance 0.400, stars 0, hint: "Lovely, but too sweet."
+  (d) one drop -> Bergamot
+    drops:  Oud, Vanilla, Bergamot
+    mix:    floral 0.00, woody 0.20, citrus 0.30, sweet 0.30, spicy 0.20
+    distance 0.300, stars 1, hint: "Lovely, but too citrus."
+  (e) one drop -> Cedar
+    drops:  Oud, Vanilla, Cedar
+    mix:    floral 0.00, woody 0.50, citrus 0.00, sweet 0.30, spicy 0.20
+    distance 0.300, stars 1, hint: "Lovely, but too woody."
+  (f) 3 random drops
+    drops:  Cedar, Bergamot, Saffron
+    mix:    floral 0.00, woody 0.33, citrus 0.33, sweet 0.00, spicy 0.33
+    distance 0.600, stars 0, hint: "It needs something sweet."
+
+=== harbour (Captain Nuri): "Wet rope and salt on a harbour wall, early in the morning."
+Target: floral 0.00, woody 0.40, citrus 0.60, sweet 0.00, spicy 0.00
+  GOOD  known good recipe
+    drops:  Bergamot, Cedar, Sea salt
+    mix:    floral 0.00, woody 0.44, citrus 0.56, sweet 0.00, spicy 0.00
+    distance 0.044, stars 3, hint: "That is exactly it."
+  (a) remove one drop
+    drops:  Bergamot, Cedar
+    mix:    floral 0.00, woody 0.50, citrus 0.50, sweet 0.00, spicy 0.00
+    distance 0.100, stars 3, hint: "Lovely, but too woody."
+  (b) extra Bergamot
+    drops:  Bergamot, Cedar, Sea salt, Bergamot
+    mix:    floral 0.00, woody 0.33, citrus 0.67, sweet 0.00, spicy 0.00
+    distance 0.067, stars 3, hint: "It needs something woody."
+  (c) one drop -> Vanilla
+    drops:  Bergamot, Cedar, Vanilla
+    mix:    floral 0.00, woody 0.33, citrus 0.33, sweet 0.33, spicy 0.00
+    distance 0.333, stars 1, hint: "Lovely, but too sweet."
+  (d) one drop -> Bergamot
+    drops:  Bergamot, Cedar, Bergamot
+    mix:    floral 0.00, woody 0.33, citrus 0.67, sweet 0.00, spicy 0.00
+    distance 0.067, stars 3, hint: "It needs something woody."
+  (e) one drop -> Cedar
+    drops:  Bergamot, Cedar, Cedar
+    mix:    floral 0.00, woody 0.67, citrus 0.33, sweet 0.00, spicy 0.00
+    distance 0.267, stars 1, hint: "It needs something citrus."
+  (f) 3 random drops
+    drops:  Amber, Neroli, Jasmine
+    mix:    floral 0.30, woody 0.10, citrus 0.20, sweet 0.40, spicy 0.00
+    distance 0.700, stars 0, hint: "Lovely, but too sweet."
+
+=== wedding (Ece): "A garden wedding, one minute before the music starts."
+Target: floral 0.50, woody 0.00, citrus 0.17, sweet 0.33, spicy 0.00
+  GOOD  known good recipe
+    drops:  Jasmine, Jasmine, Neroli
+    mix:    floral 0.45, woody 0.00, citrus 0.18, sweet 0.36, spicy 0.00
+    distance 0.045, stars 3, hint: "That is exactly it."
+  (a) remove one drop
+    drops:  Jasmine, Jasmine
+    mix:    floral 0.50, woody 0.00, citrus 0.00, sweet 0.50, spicy 0.00
+    distance 0.167, stars 2, hint: "Lovely, but too sweet."
+  (b) extra Jasmine
+    drops:  Jasmine, Jasmine, Neroli, Jasmine
+    mix:    floral 0.47, woody 0.00, citrus 0.13, sweet 0.40, spicy 0.00
+    distance 0.067, stars 3, hint: "Lovely, but too sweet."
+  (c) one drop -> Vanilla
+    drops:  Jasmine, Jasmine, Vanilla
+    mix:    floral 0.36, woody 0.00, citrus 0.00, sweet 0.64, spicy 0.00
+    distance 0.303, stars 1, hint: "Lovely, but too sweet."
+  (d) one drop -> Bergamot
+    drops:  Jasmine, Jasmine, Bergamot
+    mix:    floral 0.36, woody 0.00, citrus 0.27, sweet 0.36, spicy 0.00
+    distance 0.136, stars 2, hint: "It needs something floral."
+  (e) one drop -> Cedar
+    drops:  Jasmine, Jasmine, Cedar
+    mix:    floral 0.36, woody 0.27, citrus 0.00, sweet 0.36, spicy 0.00
+    distance 0.303, stars 1, hint: "Lovely, but too woody."
+  (f) 3 random drops
+    drops:  Oud, Vanilla, Vanilla
+    mix:    floral 0.00, woody 0.20, citrus 0.00, sweet 0.60, spicy 0.20
+    distance 0.667, stars 0, hint: "It needs something floral."
+
+=== market (Hüseyin): "A winter market: roasted chestnuts and a warm cinnamon bun."
+Target: floral 0.00, woody 0.20, citrus 0.00, sweet 0.40, spicy 0.40
+  GOOD  known good recipe
+    drops:  Amber, Amber, Saffron
+    mix:    floral 0.00, woody 0.22, citrus 0.00, sweet 0.44, spicy 0.33
+    distance 0.067, stars 3, hint: "It needs something spicy."
+  (a) remove one drop
+    drops:  Amber, Amber
+    mix:    floral 0.00, woody 0.33, citrus 0.00, sweet 0.67, spicy 0.00
+    distance 0.400, stars 1, hint: "It needs something spicy."
+  (b) extra Amber
+    drops:  Amber, Amber, Saffron, Amber
+    mix:    floral 0.00, woody 0.25, citrus 0.00, sweet 0.50, spicy 0.25
+    distance 0.150, stars 2, hint: "It needs something spicy."
+  (c) one drop -> Vanilla
+    drops:  Amber, Amber, Vanilla
+    mix:    floral 0.00, woody 0.22, citrus 0.00, sweet 0.78, spicy 0.00
+    distance 0.400, stars 0, hint: "It needs something spicy."
+  (d) one drop -> Bergamot
+    drops:  Amber, Amber, Bergamot
+    mix:    floral 0.00, woody 0.22, citrus 0.33, sweet 0.44, spicy 0.00
+    distance 0.400, stars 1, hint: "It needs something spicy."
+  (e) one drop -> Cedar
+    drops:  Amber, Amber, Cedar
+    mix:    floral 0.00, woody 0.56, citrus 0.00, sweet 0.44, spicy 0.00
+    distance 0.400, stars 0, hint: "It needs something spicy."
+  (f) 3 random drops
+    drops:  Rose, Cedar, Saffron
+    mix:    floral 0.30, woody 0.30, citrus 0.00, sweet 0.10, spicy 0.30
+    distance 0.400, stars 0, hint: "It needs something sweet."
+
+=== lobby (Madame Aliye): "The lobby of an old grand hotel, after midnight."
+Target: floral 0.20, woody 0.40, citrus 0.00, sweet 0.20, spicy 0.20
+  GOOD  known good recipe
+    drops:  Jasmine, Cedar, Oud
+    mix:    floral 0.18, woody 0.45, citrus 0.00, sweet 0.18, spicy 0.18
+    distance 0.055, stars 3, hint: "Lovely, but too woody."
+  (a) remove one drop
+    drops:  Jasmine, Cedar
+    mix:    floral 0.29, woody 0.43, citrus 0.00, sweet 0.29, spicy 0.00
+    distance 0.200, stars 2, hint: "It needs something spicy."
+  (b) extra Jasmine
+    drops:  Jasmine, Cedar, Oud, Jasmine
+    mix:    floral 0.27, woody 0.33, citrus 0.00, sweet 0.27, spicy 0.13
+    distance 0.133, stars 2, hint: "It needs something woody."
+  (c) one drop -> Vanilla
+    drops:  Jasmine, Cedar, Vanilla
+    mix:    floral 0.20, woody 0.30, citrus 0.00, sweet 0.50, spicy 0.00
+    distance 0.300, stars 1, hint: "Lovely, but too sweet."
+  (d) one drop -> Bergamot
+    drops:  Jasmine, Cedar, Bergamot
+    mix:    floral 0.20, woody 0.30, citrus 0.30, sweet 0.20, spicy 0.00
+    distance 0.300, stars 1, hint: "Lovely, but too citrus."
+  (e) one drop -> Cedar
+    drops:  Jasmine, Cedar, Cedar
+    mix:    floral 0.20, woody 0.60, citrus 0.00, sweet 0.20, spicy 0.00
+    distance 0.200, stars 2, hint: "It needs something spicy."
+  (f) 3 random drops
+    drops:  Rose, Oud, Rose
+    mix:    floral 0.50, woody 0.17, citrus 0.00, sweet 0.17, spicy 0.17
+    distance 0.300, stars 1, hint: "Lovely, but too floral."
+
+=== school (Zeynep): "Pencil shavings and orange peel, the last day of school."
+Target: floral 0.00, woody 0.40, citrus 0.40, sweet 0.20, spicy 0.00
+  GOOD  known good recipe
+    drops:  Bergamot, Cedar, Amber
+    mix:    floral 0.00, woody 0.44, citrus 0.33, sweet 0.22, spicy 0.00
+    distance 0.067, stars 3, hint: "It needs something citrus."
+  (a) remove one drop
+    drops:  Bergamot, Cedar
+    mix:    floral 0.00, woody 0.50, citrus 0.50, sweet 0.00, spicy 0.00
+    distance 0.200, stars 2, hint: "It needs something sweet."
+  (b) extra Bergamot
+    drops:  Bergamot, Cedar, Amber, Bergamot
+    mix:    floral 0.00, woody 0.33, citrus 0.50, sweet 0.17, spicy 0.00
+    distance 0.100, stars 3, hint: "Lovely, but too citrus."
+  (c) one drop -> Vanilla
+    drops:  Bergamot, Cedar, Vanilla
+    mix:    floral 0.00, woody 0.33, citrus 0.33, sweet 0.33, spicy 0.00
+    distance 0.133, stars 2, hint: "Lovely, but too sweet."
+  (d) one drop -> Bergamot
+    drops:  Bergamot, Cedar, Bergamot
+    mix:    floral 0.00, woody 0.33, citrus 0.67, sweet 0.00, spicy 0.00
+    distance 0.267, stars 1, hint: "Lovely, but too citrus."
+  (e) one drop -> Cedar
+    drops:  Bergamot, Cedar, Cedar
+    mix:    floral 0.00, woody 0.67, citrus 0.33, sweet 0.00, spicy 0.00
+    distance 0.267, stars 1, hint: "Lovely, but too woody."
+  (f) 3 random drops
+    drops:  Bergamot, Rose, Jasmine
+    mix:    floral 0.45, woody 0.00, citrus 0.27, sweet 0.27, spicy 0.00
+    distance 0.527, stars 0, hint: "Lovely, but too floral."
+
+=== master (Old Kemal): "The scent your master used to wear. You know it better than you think."
+Target: floral 0.13, woody 0.38, citrus 0.00, sweet 0.25, spicy 0.25
+  GOOD  known good recipe
+    drops:  Jasmine, Oud, Oud, Amber
+    mix:    floral 0.13, woody 0.33, citrus 0.00, sweet 0.27, spicy 0.27
+    distance 0.042, stars 3, hint: "That is exactly it."
+  (a) remove one drop
+    drops:  Jasmine, Oud, Oud
+    mix:    floral 0.17, woody 0.33, citrus 0.00, sweet 0.17, spicy 0.33
+    distance 0.125, stars 2, hint: "It needs something sweet."
+  (b) extra Oud
+    drops:  Jasmine, Oud, Oud, Amber, Oud
+    mix:    floral 0.11, woody 0.37, citrus 0.00, sweet 0.21, spicy 0.32
+    distance 0.066, stars 3, hint: "Lovely, but too spicy."
+  (c) one drop -> Vanilla
+    drops:  Jasmine, Oud, Oud, Vanilla
+    mix:    floral 0.13, woody 0.27, citrus 0.00, sweet 0.33, spicy 0.27
+    distance 0.108, stars 3, hint: "It needs something woody."
+  (d) one drop -> Bergamot
+    drops:  Jasmine, Oud, Oud, Bergamot
+    mix:    floral 0.13, woody 0.27, citrus 0.20, sweet 0.13, spicy 0.27
+    distance 0.225, stars 2, hint: "Lovely, but too citrus."
+  (e) one drop -> Cedar
+    drops:  Jasmine, Oud, Oud, Cedar
+    mix:    floral 0.13, woody 0.47, citrus 0.00, sweet 0.13, spicy 0.27
+    distance 0.117, stars 3, hint: "It needs something sweet."
+  (f) 3 random drops
+    drops:  Amber, Oud, Rose
+    mix:    floral 0.27, woody 0.27, citrus 0.00, sweet 0.27, spicy 0.18
+    distance 0.170, stars 2, hint: "Lovely, but too floral."
+
+=== SUMMARY (flawed mixes only)
+Flawed mixes: 60
+Hint sentence counts:
+   11 x Lovely, but too sweet.
+   10 x Lovely, but too citrus.
+    8 x It needs something spicy.
+    7 x It needs something sweet.
+    7 x Lovely, but too woody.
+    6 x It needs something woody.
+    4 x It needs something floral.
+    3 x It needs something citrus.
+    3 x Lovely, but too floral.
+    1 x Lovely, but too spicy.
+Hint named an axis within 0.05 of the target (likely wrong hint): 0
+Extra: flawed mixes that still scored 3 stars: 14
+Extra: "That is exactly it." given to a mix with fewer than 3 stars: 0

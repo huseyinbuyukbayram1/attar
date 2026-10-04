@@ -1,12 +1,12 @@
 import { AXES, INGREDIENTS } from '../data/ingredients'
-import type { Axis, Scent } from '../data/ingredients'
+import type { Scent } from '../data/ingredients'
 import type { Order } from '../data/customers'
 
 // Tuning knobs live here so balancing never means hunting through the code
 export const MIN_DROPS = 3
 export const MAX_DROPS = 6
 export const STAR_THRESHOLDS = { three: 0.12, two: 0.25, one: 0.4 } // distance must be BELOW these
-const HINT_TOLERANCE = 0.05 // below this difference on every axis, the mix counts as "exactly it"
+const HINT_TIE_MARGIN = 0.01 // two axes this close in how far off they are count as equally off
 
 export type Stars = 0 | 1 | 2 | 3
 export type Score = { stars: Stars; distance: number; hint: string }
@@ -52,24 +52,28 @@ export function starsFor(dist: number): Stars {
   return 0
 }
 
-// Points at the single axis that is most off, so the player gets one clear thing to fix
+// Points at the single axis that is most off, so the player gets one clear thing to fix.
+// A mix that earns 3 stars is always "exactly it": the hint must never contradict the stars.
 export function hintFor(mix: Scent, target: Scent): string {
+  if (distance(mix, target) < STAR_THRESHOLDS.three) return 'That is exactly it.'
+
   const a = proportions(mix)
   const b = proportions(target)
 
-  let worstAxis: Axis = AXES[0]
-  let worstDiff = 0
-  for (const axis of AXES) {
-    const diff = a[axis] - b[axis]
-    if (Math.abs(diff) > Math.abs(worstDiff)) {
-      worstAxis = axis
-      worstDiff = diff
-    }
+  // Axes from most off to least off (ties keep the AXES order)
+  const diffs = AXES.map((axis) => ({ axis, diff: a[axis] - b[axis] })).sort(
+    (x, y) => Math.abs(y.diff) - Math.abs(x.diff),
+  )
+  let worst = diffs[0]
+  // Two axes about equally off: asking for something that is missing is more useful than
+  // asking for less of something, so prefer the one the mix has too little of
+  const runnerUp = diffs[1]
+  if (worst.diff > 0 && runnerUp.diff < 0 && Math.abs(worst.diff) - Math.abs(runnerUp.diff) <= HINT_TIE_MARGIN) {
+    worst = runnerUp
   }
 
-  if (Math.abs(worstDiff) < HINT_TOLERANCE) return 'That is exactly it.'
-  if (worstDiff > 0) return `Lovely, but too ${worstAxis}.`
-  return `It needs something ${worstAxis}.`
+  if (worst.diff > 0) return `Lovely, but too ${worst.axis}.`
+  return `It needs something ${worst.axis}.`
 }
 
 export function scoreMix(drops: string[], order: Order): Score {
