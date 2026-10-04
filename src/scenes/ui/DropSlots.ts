@@ -2,11 +2,13 @@ import Phaser from 'phaser'
 import { FALLBACK_COLOR, INGREDIENT_COLORS } from '../../data/ingredientColors'
 import { INGREDIENTS } from '../../data/ingredients'
 import { MAX_DROPS } from '../../game/scoring'
+import { FLASK_X } from './Flask'
 import { CREAM } from './theme'
 import type { Tooltip } from './Tooltip'
 
 // Layout: one row of MAX_DROPS circles under the flask, on the dark front face of the counter
-const ROW = { firstX: 340, spacing: 36, y: 662, radius: 15 }
+const SPACING = 36
+const ROW = { firstX: FLASK_X - ((MAX_DROPS - 1) * SPACING) / 2, spacing: SPACING, y: 662, radius: 15 } // centered under the flask
 const POP = { scale: 1.25, ms: 150 } // a slot pops when a drop arrives
 const TOOLTIP_GAP = 6 // space between the top of a slot and its tooltip
 

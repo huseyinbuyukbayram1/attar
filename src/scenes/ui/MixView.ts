@@ -9,23 +9,26 @@ import { MAX_DROPS } from '../../game/scoring'
 import { Bottle, HOVER_LIFT, HOVER_SCALE } from './Bottle'
 import type { BottleLayout } from './Bottle'
 import { Button } from './Button'
+import { BASE_FRACTION, baseY } from './counterBand'
 import { DropSlots } from './DropSlots'
-import { Flask, FLASK_MOUTH } from './Flask'
+import { Flask } from './Flask'
 import { liquidColor } from './liquidColor'
 import { FINAL_MIX_ENABLED, playMixAnimation } from './mixAnimation'
+import { Notebook } from './Notebook'
 import { playPourStream, STREAM_REACH_MS } from './pourStream'
 import { addPanel, FONT, TEXT_COLOR } from './theme'
 import { Tooltip } from './Tooltip'
 
 // Layout numbers for the 1280x720 screen. In counter_view the counter's top surface (light
-// wood) spans y 524..620; below that is the dark front face. Things stand on the surface.
+// wood) spans y 524..588 (COUNTER in counterBand.ts); below that is the dark front face.
 const REMINDER = { x: 640, y: 90, width: 760, height: 64 }
 
-// Two rows of bottles to the right of the flask (the brass scale and alembic are at x < 285).
+// Two rows of bottles to the right of the flask (the brass scale, alembic and notebook are at x < 375).
 // The front row is shifted by half a spacing, so a label never hides a bottle.
 const BOTTLES_PER_ROW = 5
-const BACK_ROW = { firstX: 625, spacing: 145, bottom: 552, height: 80 }
-const FRONT_ROW = { firstX: 552, spacing: 145, bottom: 610, height: 92 }
+// Their bases are fractions of the counter-top band (see counterBand.ts)
+const BACK_ROW = { firstX: 625, spacing: 145, bottom: baseY(BASE_FRACTION.backRow), height: 80 }
+const FRONT_ROW = { firstX: 552, spacing: 145, bottom: baseY(BASE_FRACTION.frontRow), height: 92 }
 // Tooltips sit at one fixed height above the tallest bottle of the back row (counting its hover
 // scale and lift), so a tooltip never covers any bottle.
 const TOOLTIP_BOTTOM = BACK_ROW.bottom - BACK_ROW.height * HOVER_SCALE - HOVER_LIFT - 6
@@ -40,7 +43,12 @@ const CLEAR = { x: 1150, y: 680, width: 120, height: 44 }
 const POUR = { offsetX: 14, above: 30, flyMs: 300, returnMs: 250, minStreamLength: 30 }
 const NO_SMELLS_NOTE = { x: 700, y: 680, width: 280, height: 28 } // small line just left of that button
 
-type Callbacks = { onSmell: () => void; onDeliver: () => void; onSound: (event: SoundEvent) => void }
+type Callbacks = {
+  onSmell: () => void
+  onDeliver: () => void
+  onSound: (event: SoundEvent) => void
+  isSceneBusy: () => boolean // true during a phase change or other sequence of the scene
+}
 
 // Phase MIX: the counter view. Bottles to pick from, the flask with its six slots, and the
 // buttons. The GameState is updated the moment a bottle is clicked; the drawing follows at once.
@@ -64,6 +72,7 @@ export class MixView {
   private busy = false // true while a pour or the mix animation plays: input is ignored
   private tooltip: Tooltip
   private onSound: (event: SoundEvent) => void
+  private notebook: Notebook
 
   constructor(scene: Phaser.Scene, state: GameState, callbacks: Callbacks) {
     this.state = state
@@ -96,7 +105,7 @@ export class MixView {
       const textureKey = BOTTLE_TEXTURES[i % BOTTLE_TEXTURES.length]
       const bottle = new Bottle(scene, layout, textureKey, ingredient, tooltip, () => this.pick(ingredient.id, bottle))
       this.bottles.push(bottle)
-      this.root.add(bottle)
+      this.root.add([bottle.shadow, bottle]) // the shadow goes right under its bottle
     })
 
     this.flask = new Flask(scene)
@@ -111,6 +120,12 @@ export class MixView {
       if (FINAL_MIX_ENABLED && !this.isStirred()) this.stir(callbacks.onDeliver)
       else callbacks.onDeliver()
     })
+    // The notebook only opens while this view is idle: no pour, no stir, no phase change
+    this.notebook = new Notebook(scene, tooltip, {
+      canOpen: () => this.active && !this.busy && !callbacks.isSceneBusy(),
+      onOpen: () => this.tooltip.hide(),
+      onSound: (event) => this.onSound(event),
+    })
     const noteText = scene.add
       .text(NO_SMELLS_NOTE.x, NO_SMELLS_NOTE.y, 'No smells left: trust your nose.', {
         fontFamily: FONT,
@@ -123,7 +138,7 @@ export class MixView {
       noteText,
     ])
     // The tooltip goes last so it is drawn above everything, including the flask
-    this.root.add([this.flask, this.slots, this.clearButton, this.smellButton, this.deliverButton, this.noSmellsNote, tooltip])
+    this.root.add([this.flask, this.slots, this.clearButton, this.smellButton, this.deliverButton, this.noSmellsNote, this.notebook.book, tooltip])
     this.root.setVisible(false)
   }
 
@@ -141,6 +156,7 @@ export class MixView {
 
   hide() {
     this.active = false
+    this.notebook.closeNow()
     this.root.setVisible(false)
   }
 
@@ -178,7 +194,7 @@ export class MixView {
     this.root.bringToTop(bottle)
     this.root.bringToTop(this.tooltip)
 
-    const mouth = { x: FLASK_MOUTH.x + POUR.offsetX, y: FLASK_MOUTH.y - POUR.above }
+    const mouth = { x: this.flask.mouth.x + POUR.offsetX, y: this.flask.mouth.y - POUR.above }
     bottle.flyToMouth(mouth, POUR.flyMs, () => {
       // The liquid rises while the stream runs; the slot pops when the stream reaches the flask
       const ids = this.state.drops

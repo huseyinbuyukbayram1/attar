@@ -132,6 +132,7 @@ export class ShopScene extends Phaser.Scene {
       // Out of smells: deliver straight from the counter, into the same result view
       onDeliver: () => this.goTo('react', () => this.deliver()),
       onSound: (event) => this.sounds.play(event),
+      isSceneBusy: () => this.busy,
     })
     this.reactView = new ReactView(this, {
       onAdjust: () => {

@@ -1,9 +1,14 @@
 import Phaser from 'phaser'
+import { BASE_FRACTION, baseY, createShadow, SHADOW } from './counterBand'
 import { CLEAR_FLASK_KEY } from './clearFlaskTexture'
+import { measureGlass } from './glassBox'
 import { lerpColor } from './liquidColor'
 
 // Where the flask stands (canvas pixels): x = center, bottom = the line it stands on
-const FLASK = { x: 430, bottom: 622, height: 190 } // bottom = the counter surface it stands on
+// x is shifted 8 px right of the old 430 to leave room for the notebook between it and the alembic
+// bottom = the line the VISIBLE glass bottom stands on; the picture is shifted down by its empty rows
+const FLASK = { x: 438, bottom: baseY(BASE_FRACTION.flask), height: 190 }
+export const FLASK_X = FLASK.x // the drop slots are centered under it
 // The mixing_flask.png is 305x480. BODY describes its round body in pixels of that image:
 // center and radius of the circle the liquid fills. The radius is a bit smaller than the glass
 // itself (about 136) so the outline stays visible. Retune these if the art changes.
@@ -15,8 +20,7 @@ const LIQUID_MS = 250
 const START_COLOR = 0xf3e2b3
 const EVENING_TINT = 0xffd9b0 // multiplied into the flask picture in the evening
 
-// Where a flying drop should end up: just inside the flask's mouth
-export const FLASK_MOUTH = { x: FLASK.x, y: FLASK.bottom - FLASK.height + 10 }
+const MOUTH_BELOW_TOP = 10 // a flying drop ends this far below the top of the flask picture
 
 // The mixing flask. The flask picture (a see-through copy, see clearFlaskTexture.ts) is drawn
 // first and the liquid ABOVE it, so the liquid is always visible. The liquid is a circle segment
@@ -30,6 +34,7 @@ export class Flask extends Phaser.GameObjects.Container {
   private cx: number
   private cy: number
   private radius: number
+  private pictureTop: number // canvas y of the top of the flask picture
 
   // What is drawn now, where the last change started and where it is heading
   private level = 0
@@ -44,20 +49,33 @@ export class Flask extends Phaser.GameObjects.Container {
     scene.add.existing(this)
 
     const scale = FLASK.height / TEXTURE.height
+    // The picture to use, and how far its bottom edge must go below the base line so the glass
+    // (not the empty padding) touches it. Everything below is placed from pictureBottom.
+    const key = [CLEAR_FLASK_KEY, 'mixing_flask'].find((k) => scene.textures.exists(k))
+    const glass = key ? measureGlass(scene, key) : { gapBelow: 0, width: TEXTURE.width }
+    const pictureBottom = FLASK.bottom + glass.gapBelow * scale
+    this.pictureTop = pictureBottom - FLASK.height
     this.cx = FLASK.x + (BODY.x - TEXTURE.width / 2) * scale
-    this.cy = FLASK.bottom - (TEXTURE.height - BODY.y) * scale
+    this.cy = pictureBottom - (TEXTURE.height - BODY.y) * scale
     this.radius = BODY.radius * scale
 
+    // The shadow is added first, so the flask picture is drawn over it
+    this.add(createShadow(scene, FLASK.x, FLASK.bottom, glass.width * scale, SHADOW.flaskShare))
+
     // The see-through copy if it was made, else the original, else just an outline circle
-    const key = [CLEAR_FLASK_KEY, 'mixing_flask'].find((k) => scene.textures.exists(k))
     if (key) {
-      this.sprite = scene.add.image(FLASK.x, FLASK.bottom, key).setOrigin(0.5, 1).setScale(scale)
+      this.sprite = scene.add.image(FLASK.x, pictureBottom, key).setOrigin(0.5, 1).setScale(scale)
       this.add(this.sprite)
     } else {
       this.add(scene.add.circle(this.cx, this.cy, this.radius).setStrokeStyle(3, 0xf6e7c1))
     }
     this.liquid = scene.add.graphics()
     this.add(this.liquid)
+  }
+
+  // Where a flying drop should end up: just inside the flask's mouth
+  get mouth() {
+    return { x: FLASK.x, y: this.pictureTop + MOUTH_BELOW_TOP }
   }
 
   // The round body in canvas pixels, the current liquid color and where its surface is. The mix

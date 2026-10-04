@@ -49,3 +49,7 @@ All sound effects and ambience loops come from Pixabay (pixabay.com), used under
 | smell.mp3 | smell |
 | deliver.mp3 | deliver |
 | click.mp3 | click |
+- [ ] Pour stream must start exactly at the bottle mouth for round and square bottles (droppers are fine): compute the mouth point per texture and rotate it with the tilt.
+- [ ] Idea: open the cork or lid of round and square bottles during a pour (separate stopper sprite cropped from the texture, lifts away and returns).
+- [ ] Rework how the chosen drops are shown (the six slot circles): current look and position feel poor, decide later.
+- [ ] Notebook: replace the code-drawn book on the counter with a generated image and polish the panel.
