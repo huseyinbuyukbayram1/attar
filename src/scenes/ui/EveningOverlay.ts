@@ -4,7 +4,7 @@ import { addCounterCrop } from './counterCrop'
 import { addGlow, ensureGlowTexture } from './glow'
 
 // All the evening look is tuned here. Positions are in 1280x720 canvas pixels.
-const FADE_MS = 1500 // morning <-> evening crossfade
+export const EVENING_FADE_MS = 1500 // morning <-> evening crossfade; the scene waits this long before a customer enters
 // a) a copy of the morning image, tinted warm, laid over it at partial alpha
 export const TINTED_COPY = { tint: 0xffa66b, alpha: 0.55 }
 // b) a dark violet layer that darkens everything it covers (multiply blend)
@@ -62,16 +62,18 @@ export class EveningOverlay {
     this.counterCrop?.setVisible(visible)
   }
 
-  setTime(time: TimeOfDay) {
+  // instant = jump without the crossfade (used while a full-screen card hides the change)
+  setTime(time: TimeOfDay, instant = false) {
     const evening = time === 'evening'
+    const duration = instant ? 0 : EVENING_FADE_MS
     this.scene.tweens.killTweensOf(this.root) // a new fade replaces one still running
-    this.scene.tweens.add({ targets: this.root, alpha: evening ? 1 : 0, duration: FADE_MS })
+    this.scene.tweens.add({ targets: this.root, alpha: evening ? 1 : 0, duration })
     if (this.counterCrop) {
       this.scene.tweens.killTweensOf(this.counterCrop)
       this.scene.tweens.add({
         targets: this.counterCrop,
         alpha: evening ? TINTED_COPY.alpha : 0,
-        duration: FADE_MS,
+        duration,
       })
     }
 

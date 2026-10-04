@@ -8,7 +8,7 @@ const PLACEHOLDER = { y: 400, width: 180, height: 260 } // box shown when a port
 // The customer walks in from the door: smaller and a bit higher, then grows into place
 const ENTER_MS = 500
 const ENTER_FROM = { scale: 0.85, rise: 36 } // rise = how many pixels higher it starts
-const LEAVE_MS = 250
+const LEAVE_MS = 350 // the customer walks back towards the door: the entrance in reverse
 const TINT_MS = 1500 // same as the morning/evening crossfade, so the customer changes with the room
 const NO_TINT = 0xffffff
 
@@ -30,7 +30,8 @@ export class CustomerArt {
   }
 
   // Rebuilt for every customer (simpler than swapping textures and re-scaling), then walks in
-  show(order: Order) {
+  // onArrived runs when the entrance tween has finished
+  show(order: Order, onArrived?: () => void) {
     this.root.removeAll(true)
     this.portrait = undefined
 
@@ -72,17 +73,25 @@ export class CustomerArt {
       duration: ENTER_MS,
       ease: 'Sine.easeOut',
       // Land exactly on fully opaque and full size, whatever the tween's last step was
-      onComplete: () => this.root.setAlpha(1).setScale(1).setY(PORTRAIT.y),
+      onComplete: () => {
+        this.root.setAlpha(1).setScale(1).setY(PORTRAIT.y)
+        onArrived?.()
+      },
     })
   }
 
   // Warm tint for evening, null for morning. If a portrait is visible it fades to the new
   // tint; a customer arriving later picks the current one up in show().
-  setTint(tint: number | null) {
+  setTint(tint: number | null, instant = false) {
     this.targetTint = tint ?? NO_TINT
     const from = this.currentTint
     const to = this.targetTint
     this.scene.tweens.killTweensOf(this.tintProgress)
+    if (instant) {
+      this.tintProgress.t = 1
+      this.applyTint(to)
+      return
+    }
     this.tintProgress.t = 0
     this.scene.tweens.add({
       targets: this.tintProgress,
@@ -101,7 +110,15 @@ export class CustomerArt {
 
   leave(onDone: () => void) {
     this.scene.tweens.killTweensOf(this.root) // an unfinished entrance must not fight the fade-out
-    this.scene.tweens.add({ targets: this.root, alpha: 0, duration: LEAVE_MS, onComplete: onDone })
+    this.scene.tweens.add({
+      targets: this.root,
+      alpha: 0,
+      scale: ENTER_FROM.scale,
+      y: PORTRAIT.y - ENTER_FROM.rise,
+      duration: LEAVE_MS,
+      ease: 'Sine.easeIn',
+      onComplete: onDone,
+    })
   }
 
   setVisible(visible: boolean) {

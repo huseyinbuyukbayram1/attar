@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { FALLBACK_COLOR, INGREDIENT_COLORS } from '../../data/ingredientColors'
 import type { Order } from '../../data/customers'
 import { INGREDIENTS } from '../../data/ingredients'
+import type { SoundEvent } from '../../game/audio'
 import { MAX_SMELLS } from '../../game/gameState'
 import type { GameState } from '../../game/gameState'
 import { MAX_DROPS } from '../../game/scoring'
@@ -11,7 +12,7 @@ import { Button } from './Button'
 import { DropSlots } from './DropSlots'
 import { Flask, FLASK_MOUTH } from './Flask'
 import { liquidColor } from './liquidColor'
-import { playMixAnimation } from './mixAnimation'
+import { FINAL_MIX_ENABLED, playMixAnimation } from './mixAnimation'
 import { playPourStream, STREAM_REACH_MS } from './pourStream'
 import { addPanel, FONT, TEXT_COLOR } from './theme'
 import { Tooltip } from './Tooltip'
@@ -39,7 +40,7 @@ const CLEAR = { x: 1150, y: 680, width: 120, height: 44 }
 const POUR = { offsetX: 14, above: 30, flyMs: 300, returnMs: 250, minStreamLength: 30 }
 const NO_SMELLS_NOTE = { x: 700, y: 680, width: 280, height: 28 } // small line just left of that button
 
-type Callbacks = { onSmell: () => void; onDeliver: () => void }
+type Callbacks = { onSmell: () => void; onDeliver: () => void; onSound: (event: SoundEvent) => void }
 
 // Phase MIX: the counter view. Bottles to pick from, the flask with its six slots, and the
 // buttons. The GameState is updated the moment a bottle is clicked; the drawing follows at once.
@@ -58,10 +59,12 @@ export class MixView {
   private active = false
   private busy = false // true while a pour or the mix animation plays: input is ignored
   private tooltip: Tooltip
+  private onSound: (event: SoundEvent) => void
 
   constructor(scene: Phaser.Scene, state: GameState, callbacks: Callbacks) {
     this.state = state
     this.scene = scene
+    this.onSound = callbacks.onSound
     this.root = scene.add.container(0, 0)
 
     this.reminderText = scene.add
@@ -96,10 +99,13 @@ export class MixView {
     this.slots = new DropSlots(scene, tooltip, (index) => this.emptySlot(index))
     this.clearButton = new Button(scene, CLEAR.x, CLEAR.y, CLEAR.width, CLEAR.height, 'Clear', () => this.clear())
     this.smellButton = new Button(scene, SMELL.x, SMELL.y, SMELL.width, SMELL.height, 'Let them smell', () => {
-      if (this.active && !this.busy && this.state.canSmell()) this.mix(callbacks.onSmell)
+      if (this.active && !this.busy && this.state.canSmell()) this.stir(callbacks.onSmell)
     })
     this.deliverButton = new Button(scene, DELIVER.x, DELIVER.y, DELIVER.width, DELIVER.height, 'Deliver', () => {
-      if (this.active && !this.busy && this.state.canDeliver()) callbacks.onDeliver()
+      if (!this.active || this.busy || !this.state.canDeliver()) return
+      // Final stir before the score, unless it is switched off
+      if (FINAL_MIX_ENABLED) this.stir(callbacks.onDeliver)
+      else callbacks.onDeliver()
     })
     const noteText = scene.add
       .text(NO_SMELLS_NOTE.x, NO_SMELLS_NOTE.y, 'No smells left: trust your nose.', {
@@ -144,6 +150,7 @@ export class MixView {
     }
     this.busy = true
     this.tooltip.hide()
+    this.onSound('bottle')
 
     // The bottle must be drawn above the flask while it pours; its old place in the list is
     // remembered so it goes back there (the front row has to stay in front of the back row).
@@ -156,6 +163,7 @@ export class MixView {
       // The liquid rises while the stream runs; the slot pops when the stream reaches the flask
       const ids = this.state.drops
       const level = ids.length / MAX_DROPS
+      this.onSound('pour')
       this.flask.setTarget(level, liquidColor(ids), true)
       this.scene.time.delayedCall(STREAM_REACH_MS, () => {
         this.slots.setSlots(this.state.slots)
@@ -172,10 +180,13 @@ export class MixView {
     })
   }
 
-  // "Let them smell": shake and swirl the flask first, then go on to the REACT phase
-  private mix(onDone: () => void) {
+  // The mix animation (shake, swirl, sparkles), then onDone. Public because the scene also plays
+  // it when delivering from the REACT phase. Input is ignored until it ends.
+  stir(onDone: () => void) {
+    if (!this.active) return
     this.busy = true
     this.tooltip.hide()
+    this.onSound('mix')
     playMixAnimation(this.scene, this.flask, () => {
       this.busy = false
       if (this.active) onDone()

@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { ORDERS } from '../data/customers'
+import { loadSounds } from '../game/audio'
 import { makeClearFlaskTexture } from './ui/clearFlaskTexture'
 
 // Loads all assets up front so later scenes can use them instantly, then shows the intro.
@@ -28,6 +29,8 @@ export class BootScene extends Phaser.Scene {
     // Optional art for the two endings; without it EndingScene uses the shop background with an overlay
     this.load.image('ending_win', 'assets/backgrounds/ending_win.jpg')
     this.load.image('ending_lose', 'assets/backgrounds/ending_lose.jpg')
+
+    loadSounds(this) // only the sounds that have a file name in SOUND_FILES
 
     // One portrait per order, found by order id. Portraits are made one at a time, so
     // many will be missing for a while. A missing or invalid file fires 'loaderror' (warned

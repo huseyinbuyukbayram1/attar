@@ -2,6 +2,8 @@ import Phaser from 'phaser'
 import type { Flask } from './Flask'
 import { lerpColor } from './liquidColor'
 
+// Set to false to skip the stir that now also happens when delivering
+export const FINAL_MIX_ENABLED = true
 const MIX_MS = 900
 const SHAKE = { px: 5, cycles: 4 } // how far and how many times the flask swings left and right
 const SWIRL = { turns: 1.5, flatness: 0.28, lineWidth: 3, alpha: 0.7, lighten: 0.5 }

@@ -10,12 +10,14 @@ const RADIUS = 20
 // The customer's speech bubble plus a name tag. Used for the order and for the reaction.
 // The box is sized to its text, so short lines get a small bubble.
 export class SpeechBox {
+  private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
   private background: Phaser.GameObjects.Graphics
   private nameText: Phaser.GameObjects.Text
   private speechText: Phaser.GameObjects.Text
 
   constructor(scene: Phaser.Scene) {
+    this.scene = scene
     // Children use positions relative to the top-center of the box, so the whole thing moves as one
     this.root = scene.add.container(BOX.x, BOX.top)
     this.background = scene.add.graphics()
@@ -43,6 +45,16 @@ export class SpeechBox {
   setText(text: string) {
     this.speechText.setText(text)
     this.layout()
+  }
+
+  setAlpha(alpha: number) {
+    this.root.setAlpha(alpha)
+  }
+
+  // Fades the box in from invisible, e.g. after the customer has arrived
+  fadeIn(ms: number, onDone: () => void) {
+    this.root.setAlpha(0)
+    this.scene.tweens.add({ targets: this.root, alpha: 1, duration: ms, onComplete: onDone })
   }
 
   setVisible(visible: boolean) {

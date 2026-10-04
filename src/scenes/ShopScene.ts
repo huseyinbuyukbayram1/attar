@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { ORDERS } from '../data/customers'
-import { CUSTOMERS_PER_DAY, GameState, TOTAL_DAYS } from '../game/gameState'
+import { SoundManager } from '../game/audio'
+import { GameState } from '../game/gameState'
 import type { TimeOfDay } from '../game/gameState'
 import { DEBT, formatMoney, payoutFor } from '../game/economy'
 import { hintFor, mixScent, scoreMix } from '../game/scoring'
@@ -9,8 +10,10 @@ import { CustomerArt } from './ui/CustomerArt'
 import { addCounterCrop } from './ui/counterCrop'
 import { ContactSheet } from './ui/ContactSheet'
 import { DayCard } from './ui/DayCard'
-import { EveningOverlay } from './ui/EveningOverlay'
+import { EVENING_FADE_MS, EveningOverlay } from './ui/EveningOverlay'
 import { MixEvening } from './ui/MixEvening'
+import { MixLights } from './ui/MixLights'
+import { FINAL_MIX_ENABLED } from './ui/mixAnimation'
 import { MixView } from './ui/MixView'
 import { OrderView } from './ui/OrderView'
 import { ReactView } from './ui/ReactView'
@@ -18,8 +21,12 @@ import { SpeechBox } from './ui/SpeechBox'
 import { addPillLabel } from './ui/theme'
 
 export const TRANSITION_MS = 350 // total time of a fade between phases (half out, half in)
+// Timing of the pause between customers (the leave, enter and evening times live with their art)
+const PAUSE_MS = 300 // a beat of empty shop before the next customer walks in
+const SPEECH_FADE_MS = 250 // the speech box fades in once the customer has arrived
+const BUTTON_FADE_MS = 250 // then the "Make perfume" button
 const COUNTER_TOP_Y = 578 // in canvas pixels: the counter's top edge; everything from here down is drawn in front of the customer
-// TEMP: remove before release (also the marked code in create() and startCustomer())
+// TEMP: remove before release (also the marked code in create() and showCustomerAtOnce())
 const DEV_SKIP_KEYS = true // N = next customer, B = previous (no scoring), G = contact sheet, E = evening in it
 
 const EVENING_CUSTOMER_TINT = 0xffd9b0 // warm tint so the portrait matches the evening light
@@ -34,6 +41,7 @@ const DEPTH = {
   eveningCounter: -60, // evening-tinted counter crop
   mixBackdrop: -50, // only shown in the MIX phase
   mixEvening: -40, // evening look over the mix backdrop, behind the bottles and flask
+  mixLights: -30, // candle and bulb glows, above the evening look
 }
 const MIX_FALLBACK_COLOR = 0x2a1a10 // plain warm brown if counter_view.jpg is missing
 const FADE_COLOR = 0x1a1210
@@ -41,7 +49,7 @@ const FADE_DEPTH = 1000 // above everything, so the transition covers the whole 
 
 // Small always-on labels in the top corners (16 px from the canvas edges)
 const TITLE = { x: 76, y: 38, width: 120, height: 48 }
-const HUD = { x: 1144, y: 42, width: 240, height: 56 } // two lines: day/customer, then money
+const HUD = { x: 1144, y: 38, width: 240, height: 44 } // one line: money / debt
 
 // What the customer says after delivery, by star count
 const REACTIONS: Record<Stars, string> = {
@@ -71,6 +79,8 @@ export class ShopScene extends Phaser.Scene {
   private orderView!: OrderView
   private mixView!: MixView
   private mixEvening!: MixEvening
+  private mixLights!: MixLights
+  private sounds!: SoundManager
   private reactView!: ReactView
   private hud!: Phaser.GameObjects.Text
   private dayCard!: DayCard
@@ -107,20 +117,28 @@ export class ShopScene extends Phaser.Scene {
     )
     this.addMixBackdrop()
     this.mixEvening = new MixEvening(this, 'counter_view', DEPTH.mixEvening)
+    this.mixLights = new MixLights(this, DEPTH.mixLights)
 
     addPillLabel(this, TITLE.x, TITLE.y, TITLE.width, TITLE.height, 'Attar', 32)
     this.hud = addPillLabel(this, HUD.x, HUD.y, HUD.width, HUD.height, '', 18)
 
     this.speech = new SpeechBox(this)
-    this.orderView = new OrderView(this, () => this.goTo('mix'))
+    this.orderView = new OrderView(this, () => {
+      if (!this.busy) this.sounds.play('click')
+      this.goTo('mix')
+    })
     this.mixView = new MixView(this, this.state, {
       onSmell: () => this.goTo('react', () => this.enterReact()),
       // Out of smells: deliver straight from the counter, into the same result view
       onDeliver: () => this.goTo('react', () => this.deliver()),
+      onSound: (event) => this.sounds.play(event),
     })
     this.reactView = new ReactView(this, {
-      onAdjust: () => this.goTo('mix'),
-      onDeliver: () => this.deliver(),
+      onAdjust: () => {
+        if (!this.busy) this.sounds.play('click')
+        this.goTo('mix')
+      },
+      onDeliver: () => this.deliverFromReact(),
       onNext: () => this.next(),
     })
 
@@ -131,55 +149,81 @@ export class ShopScene extends Phaser.Scene {
 
     this.dayCard = new DayCard(this)
 
+    // Sound: ambience starts after the first click (the browser decides when sound is allowed)
+    this.sounds = new SoundManager(this)
+    this.sounds.startAmbience(this.state.timeOfDay)
+    this.events.once('shutdown', () => this.sounds.destroy())
+
     // TEMP: remove before release
     if (DEV_SKIP_KEYS) this.addDevKeys()
 
     this.beginCustomer(true)
   }
 
-  // The state decides the time of day; the overlay plays the 1500 ms crossfade
-  setTimeOfDay(time: TimeOfDay) {
-    this.evening.setTime(time)
-    this.customer.setTint(time === 'evening' ? EVENING_CUSTOMER_TINT : null)
+  // The state decides the time of day; the overlay plays the 1500 ms crossfade, or jumps when
+  // `instant` (a card covers the screen). The ambience sound follows the same light.
+  setTimeOfDay(time: TimeOfDay, instant = false) {
+    this.evening.setTime(time, instant)
+    this.customer.setTint(time === 'evening' ? EVENING_CUSTOMER_TINT : null, instant)
+    this.sounds.setTime(time, instant)
   }
 
-  // The first customer of a day arrives behind a "Day X" card (the screen is reset while the
-  // card covers it); the second one arrives directly. Clicks are blocked meanwhile.
+  // Brings in the customer now in the state, as one sequence with clicks blocked until it ends.
+  // The evening crossfade and a customer's entrance never overlap: the shop changes while it is
+  // empty, then a pause, then the customer walks in, then the speech box, then the button.
+  //  - first customer of a day: "Day X" card, the shop switches to morning under it
+  //  - second customer: the shop crossfades to evening
   private beginCustomer(firstOfGame = false) {
-    if (this.state.customerOfDay !== 1) {
-      this.startCustomer()
-      this.busy = false
-      return
-    }
     this.busy = true
-    this.dayCard.show(
-      this.state.day,
-      () => this.startCustomer(),
-      () => {
-        this.busy = false
-      },
-      firstOfGame,
-    )
+    if (this.state.customerOfDay === 1) {
+      this.dayCard.show(
+        this.state.day,
+        () => this.prepareCustomer(true),
+        () => this.time.delayedCall(PAUSE_MS, () => this.enterCustomer()),
+        firstOfGame,
+      )
+    } else {
+      this.prepareCustomer(false)
+      this.time.delayedCall(EVENING_FADE_MS + PAUSE_MS, () => this.enterCustomer())
+    }
   }
 
   private updateHud() {
     const { state } = this
-    this.hud.setText(
-      `Day ${state.day}/${TOTAL_DAYS} - Customer ${state.customerOfDay}/${CUSTOMERS_PER_DAY}\n` +
-        `${formatMoney(state.money)} / ${formatMoney(DEBT)}`,
-    )
+    this.hud.setText(`${formatMoney(state.money)} / ${formatMoney(DEBT)}`)
   }
 
-  // A new customer arrives: reset the screen and start in the ORDER phase
-  private startCustomer() {
+  // Resets the screen for the customer in the state, without showing the customer yet: the
+  // light changes, the ORDER phase is set up, and the speech box and button are invisible.
+  private prepareCustomer(instantLight: boolean) {
     const { state } = this
-    this.setTimeOfDay(state.timeOfDay)
+    this.setTimeOfDay(state.timeOfDay, instantLight)
     this.updateHud()
     this.speech.setSpeaker(state.order.customerName)
     this.speech.setText(state.order.orderText)
-    this.customer.show(state.order)
     this.devLabel?.setText(`dev: ${state.order.id}`) // TEMP: remove before release
     this.applyPhase('order')
+    this.speech.setAlpha(0)
+    this.orderView.setAlpha(0)
+  }
+
+  // The customer walks in; when they have arrived the speech box fades in, then the button
+  private enterCustomer() {
+    this.customer.show(this.state.order, () =>
+      this.speech.fadeIn(SPEECH_FADE_MS, () =>
+        this.orderView.fadeIn(BUTTON_FADE_MS, () => {
+          this.busy = false
+        }),
+      ),
+    )
+  }
+
+  // TEMP: remove before release. Dev keys show a customer at once, with no sequence.
+  private showCustomerAtOnce() {
+    this.prepareCustomer(true)
+    this.speech.setAlpha(1)
+    this.orderView.setAlpha(1)
+    this.customer.show(this.state.order)
   }
 
   // Fade to dark, switch what is visible, fade back in. onSwitch runs at the dark moment,
@@ -187,6 +231,13 @@ export class ShopScene extends Phaser.Scene {
   private goTo(phase: Phase, onSwitch?: () => void) {
     if (this.busy) return
     this.busy = true
+    this.fadeSwitch(phase, onSwitch, () => {
+      this.busy = false
+    })
+  }
+
+  // The fade itself; the caller owns the `busy` flag, so several steps can be chained
+  private fadeSwitch(phase: Phase, onSwitch: (() => void) | undefined, onDone: () => void) {
     this.tweens.add({
       targets: this.fade,
       alpha: 1,
@@ -194,16 +245,29 @@ export class ShopScene extends Phaser.Scene {
       onComplete: () => {
         this.applyPhase(phase)
         onSwitch?.()
-        this.tweens.add({
-          targets: this.fade,
-          alpha: 0,
-          duration: TRANSITION_MS / 2,
-          onComplete: () => {
-            this.busy = false
-          },
-        })
+        this.tweens.add({ targets: this.fade, alpha: 0, duration: TRANSITION_MS / 2, onComplete: onDone })
       },
     })
+  }
+
+  // Deliver in the REACT phase: back to the counter for a last stir with the slots as they are,
+  // then back to the customer for the result. Clicks are blocked all along.
+  private deliverFromReact() {
+    if (this.busy) return
+    if (!FINAL_MIX_ENABLED) {
+      this.deliver()
+      return
+    }
+    this.busy = true
+    this.sounds.play('click')
+    this.reactView.hideButtons()
+    this.fadeSwitch('mix', undefined, () =>
+      this.mixView.stir(() =>
+        this.fadeSwitch('react', () => this.deliver(), () => {
+          this.busy = false
+        }),
+      ),
+    )
   }
 
   // The one place that decides what is visible in each phase
@@ -221,15 +285,18 @@ export class ShopScene extends Phaser.Scene {
       const evening = this.state.timeOfDay === 'evening'
       this.mixView.show(this.state.order, evening)
       this.mixEvening.show(evening)
+      this.mixLights.show(evening)
     } else {
       this.mixView.hide()
       this.mixEvening.hide()
+      this.mixLights.hide()
     }
   }
 
   // Entering REACT from MIX: the customer smells (this uses up one smell) and comments
   private enterReact() {
     const { state } = this
+    this.sounds.play('smell')
     state.useSmell()
     this.speech.setText(hintFor(mixScent(state.drops), state.order.target))
     this.reactView.showChoices()
@@ -241,6 +308,7 @@ export class ShopScene extends Phaser.Scene {
     const payout = payoutFor(score.stars)
     state.addStars(score.stars)
     state.addMoney(payout)
+    this.sounds.play('deliver')
     this.updateHud()
     const stars = '★'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
     this.speech.setText(`${stars}\n${REACTIONS[score.stars]}\n+${formatMoney(payout)}`)
@@ -250,7 +318,9 @@ export class ShopScene extends Phaser.Scene {
   private next() {
     // Hide the buttons and block clicks so a double click can't advance twice during the fade
     this.busy = true
+    this.sounds.play('click')
     this.reactView.hideButtons()
+    this.speech.setVisible(false) // the result text goes away as the customer leaves
     this.customer.leave(() => {
       if (this.state.isLastOrder) {
         this.scene.start('EndingScene', { money: this.state.money })
@@ -311,7 +381,7 @@ export class ShopScene extends Phaser.Scene {
       state.orderIndex = (state.orderIndex + step + ORDERS.length) % ORDERS.length
       state.clear()
       state.smellsUsed = 0
-      this.startCustomer()
+      this.showCustomerAtOnce()
     }
     const next = () => skip(1)
     const previous = () => skip(-1)
