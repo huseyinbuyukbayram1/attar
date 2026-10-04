@@ -142,7 +142,9 @@ export class MixView {
       noteText,
     ])
     // The tooltip goes last so it is drawn above everything, including the flask
-    this.root.add([this.flask, this.slots, this.emptyButton, this.smellButton, this.deliverButton, this.noSmellsNote, this.notebook.book, tooltip])
+    // The notebook comes before the flask: the waste pot of the emptying animation is drawn just below
+    // the flask, and it must be in front of the notebook, too
+    this.root.add([this.notebook.book, this.flask, this.slots, this.emptyButton, this.smellButton, this.deliverButton, this.noSmellsNote, tooltip])
     this.root.setVisible(false)
   }
 
@@ -252,17 +254,18 @@ export class MixView {
     this.busy = true
     this.tooltip.setLocked(true)
     this.onSound('click')
-    // The slots empty when the flask starts to go back
-    this.flask.playEmpty(
-      () => this.slots.fadeOut(() => {}),
-      () => {
+    // The slots empty when the flask tilts back
+    this.flask.playEmpty({
+      onPour: () => this.onSound('pour'),
+      onBack: () => this.slots.fadeOut(() => {}), // the slots empty when the flask tilts back
+      onDone: () => {
         this.tooltip.setLocked(false)
         this.busy = false
         if (!this.active) return
         this.state.clear()
         this.refresh(false)
       },
-    )
+    })
   }
 
   // Redraws everything from the state (no pour: used for show, clear and emptying a slot)
