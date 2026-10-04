@@ -55,3 +55,53 @@ export function measureGlass(scene: Phaser.Scene, key: string): GlassBox {
   cache.set(key, box)
   return box
 }
+
+// The solid part of a picture that has something hanging below it (the notebook's ribbon): the
+// lowest row whose visible width is at least half of the widest row. All numbers are in pixels
+// of the picture; gapBelow = empty rows under that row, rows top..bottom and columns left..right
+// are the visible body.
+export type BodyBox = { gapBelow: number; top: number; bottom: number; left: number; right: number }
+const bodyCache = new Map<string, BodyBox>()
+const BODY_MIN_WIDTH_SHARE = 0.5
+
+export function measureBody(scene: Phaser.Scene, key: string): BodyBox {
+  const known = bodyCache.get(key)
+  if (known) return known
+  const source = scene.textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement
+  const canvas = document.createElement('canvas')
+  canvas.width = source.width
+  canvas.height = source.height
+  const context = canvas.getContext('2d')
+  let box: BodyBox = { gapBelow: 0, top: 0, bottom: source.height - 1, left: 0, right: source.width - 1 }
+  if (context) {
+    context.drawImage(source, 0, 0)
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+    const rows: { left: number; right: number }[] = [] // per row; right < left when the row is empty
+    let widest = 0
+    for (let y = 0; y < canvas.height; y++) {
+      let left = canvas.width
+      let right = -1
+      for (let x = 0; x < canvas.width; x++) {
+        if (pixels[(y * canvas.width + x) * 4 + 3] > ALPHA_MIN) {
+          left = Math.min(left, x)
+          right = Math.max(right, x)
+        }
+      }
+      rows.push({ left, right })
+      widest = Math.max(widest, right - left + 1)
+    }
+    const solid = rows.map((row, y) => ({ ...row, y })).filter((row) => row.right - row.left + 1 >= widest * BODY_MIN_WIDTH_SHARE)
+    if (solid.length > 0) {
+      const bottom = solid[solid.length - 1].y
+      box = {
+        gapBelow: canvas.height - 1 - bottom,
+        top: solid[0].y,
+        bottom,
+        left: Math.min(...solid.map((row) => row.left)),
+        right: Math.max(...solid.map((row) => row.right)),
+      }
+    }
+  }
+  bodyCache.set(key, box)
+  return box
+}

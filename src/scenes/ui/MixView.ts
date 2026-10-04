@@ -153,6 +153,7 @@ export class MixView {
     this.busy = false
     this.bottles.forEach((bottle) => bottle.setEvening(evening))
     this.flask.setEvening(evening)
+    this.notebook.setEvening(evening)
     this.reminderText.setText(`${order.customerName}: ${order.orderText}`)
     this.refresh(false)
     this.root.setVisible(true)
