@@ -20,27 +20,29 @@ import { addPanel, FONT, TEXT_COLOR } from './theme'
 import { Tooltip } from './Tooltip'
 
 // Layout numbers for the 1280x720 screen. In counter_view the counter's top surface (light
-// wood) spans y 524..588 (COUNTER in counterBand.ts); below that is the dark front face.
+// wood) spans y 497..617 (COUNTER in counterBand.ts); below that is the dark front face.
 const REMINDER = { x: 640, y: 90, width: 760, height: 64 }
 
 // Two rows of bottles to the right of the flask (the brass scale, alembic and notebook are at x < 375).
 // The front row is shifted by half a spacing, so a label never hides a bottle.
 const BOTTLES_PER_ROW = 5
 // Their bases are fractions of the counter-top band (see counterBand.ts)
-const BACK_ROW = { firstX: 625, spacing: 145, bottom: baseY(BASE_FRACTION.backRow), height: 80 }
-const FRONT_ROW = { firstX: 552, spacing: 145, bottom: baseY(BASE_FRACTION.frontRow), height: 92 }
+// `scale` is the perspective: the back row is further away, so its bottles are drawn smaller
+const BACK_ROW = { firstX: 625, spacing: 145, bottom: baseY(BASE_FRACTION.backRow), height: 80, scale: 0.92 }
+const FRONT_ROW = { firstX: 552, spacing: 145, bottom: baseY(BASE_FRACTION.frontRow), height: 92, scale: 1 }
 // Tooltips sit at one fixed height above the tallest bottle of the back row (counting its hover
 // scale and lift), so a tooltip never covers any bottle.
-const TOOLTIP_BOTTOM = BACK_ROW.bottom - BACK_ROW.height * HOVER_SCALE - HOVER_LIFT - 6
+const TOOLTIP_BOTTOM = BACK_ROW.bottom - BACK_ROW.height * BACK_ROW.scale * HOVER_SCALE - HOVER_LIFT - 6
 // The three bottle shapes rotate in this fixed order over the ten ingredients
 const BOTTLE_TEXTURES = ['bottle_round', 'bottle_dropper', 'bottle_square']
 
 // Buttons on the dark front face, bottom right
 const SMELL = { x: 950, y: 680, width: 200, height: 44 } // "Deliver" takes its place when out of smells
 const DELIVER = SMELL
-const CLEAR = { x: 1150, y: 680, width: 120, height: 44 }
-// Pouring: the bottle's mouth stops a little right of, and above, the flask's mouth
-const POUR = { offsetX: 14, above: 30, flyMs: 300, returnMs: 250, minStreamLength: 30 }
+const EMPTY_BUTTON = { x: 1170, y: 680, width: 190, height: 44 } // right edge as before; wide for its longer text
+// Pouring: the tilted bottle stops with its MOUTH this far above (gap) and beside (shiftX) the
+// flask's rim; clearRaise lifts it a little more so the bottle's body clears the flask
+const POUR = { gap: 10, shiftX: 0, clearRaise: 20, flyMs: 300, returnMs: 250, minStreamLength: 30 }
 const NO_SMELLS_NOTE = { x: 700, y: 680, width: 280, height: 28 } // small line just left of that button
 
 type Callbacks = {
@@ -60,7 +62,7 @@ export class MixView {
   private bottles: Bottle[] = []
   private scene: Phaser.Scene
   private slots: DropSlots
-  private clearButton: Button
+  private emptyButton: Button
   private smellButton: Button
   private deliverButton: Button
   private noSmellsNote: Phaser.GameObjects.Container
@@ -99,7 +101,7 @@ export class MixView {
       const layout: BottleLayout = {
         x: row.firstX + (i % BOTTLES_PER_ROW) * row.spacing,
         bottom: row.bottom,
-        height: row.height,
+        height: row.height * row.scale,
         tooltipY: TOOLTIP_BOTTOM,
       }
       const textureKey = BOTTLE_TEXTURES[i % BOTTLE_TEXTURES.length]
@@ -109,8 +111,10 @@ export class MixView {
     })
 
     this.flask = new Flask(scene)
-    this.slots = new DropSlots(scene, tooltip, (index) => this.emptySlot(index))
-    this.clearButton = new Button(scene, CLEAR.x, CLEAR.y, CLEAR.width, CLEAR.height, 'Clear', () => this.clear())
+    this.slots = new DropSlots(scene, tooltip)
+    this.emptyButton = new Button(scene, EMPTY_BUTTON.x, EMPTY_BUTTON.y, EMPTY_BUTTON.width, EMPTY_BUTTON.height, 'Empty the flask', () =>
+      this.emptyFlask(),
+    )
     this.smellButton = new Button(scene, SMELL.x, SMELL.y, SMELL.width, SMELL.height, 'Let them smell', () => {
       if (this.active && !this.busy && this.state.canSmell()) this.stir(callbacks.onSmell)
     })
@@ -138,7 +142,7 @@ export class MixView {
       noteText,
     ])
     // The tooltip goes last so it is drawn above everything, including the flask
-    this.root.add([this.flask, this.slots, this.clearButton, this.smellButton, this.deliverButton, this.noSmellsNote, this.notebook.book, tooltip])
+    this.root.add([this.flask, this.slots, this.emptyButton, this.smellButton, this.deliverButton, this.noSmellsNote, this.notebook.book, tooltip])
     this.root.setVisible(false)
   }
 
@@ -185,7 +189,9 @@ export class MixView {
       return
     }
     this.busy = true
-    this.tooltip.hide()
+    this.tooltip.setLocked(true) // no tooltips until the bottle is home again
+    // 1) Stop all hover tweens and put the bottle in its resting pose before anything moves
+    bottle.beginPour()
     this.onSound('bottle')
 
     // The bottle must be drawn above the flask while it pours; its old place in the list is
@@ -194,8 +200,12 @@ export class MixView {
     this.root.bringToTop(bottle)
     this.root.bringToTop(this.tooltip)
 
-    const mouth = { x: this.flask.mouth.x + POUR.offsetX, y: this.flask.mouth.y - POUR.above }
-    bottle.flyToMouth(mouth, POUR.flyMs, () => {
+    // The stream's x, and where the bottle's MOUTH must stop. flyToMouth solves the bottle's x
+    // for exactly this mouth x at the final tilt, so nothing is estimated.
+    const mouthX = this.flask.mouth.x + POUR.shiftX
+    const target = { x: mouthX, y: this.flask.mouth.y - POUR.gap - POUR.clearRaise }
+    // 2) fly and tilt; 3) only when that has ended, the stream starts
+    bottle.flyToMouth(target, POUR.flyMs, () => {
       // The liquid rises while the stream runs; the slot pops when the stream reaches the flask
       const ids = this.state.drops
       const level = ids.length / MAX_DROPS
@@ -206,10 +216,14 @@ export class MixView {
         this.slots.pop(index)
         this.refreshButtons()
       })
-      const bottom = Math.max(mouth.y + POUR.minStreamLength, this.flask.surfaceYAt(level))
-      playPourStream(this.scene, this.root, mouth.x, mouth.y, bottom, INGREDIENT_COLORS[id] ?? FALLBACK_COLOR, () => {
+      const top = target.y // the bottle has stopped, so its mouth is exactly here
+      const bottom = Math.max(top + POUR.minStreamLength, this.flask.surfaceYAt(level))
+      playPourStream(this.scene, this.root, mouthX, top, bottom, INGREDIENT_COLORS[id] ?? FALLBACK_COLOR, () => {
+        // 4) the stream is over: the bottle goes home
         bottle.flyHome(POUR.returnMs, () => {
           this.root.moveTo(bottle, place)
+          bottle.endPour()
+          this.tooltip.setLocked(false)
           this.busy = false
         })
       })
@@ -230,16 +244,24 @@ export class MixView {
     })
   }
 
-  private emptySlot(index: number) {
-    if (!this.active || this.busy || this.state.slots[index] === null) return
-    this.state.removeSlot(index)
-    this.refresh(true)
-  }
-
-  private clear() {
-    if (!this.active || this.busy) return
-    this.state.clear()
-    this.refresh(true)
+  // The only way to take drops out: empty the whole flask. The state is cleared when the
+  // animation ends; until then input is ignored. smellsUsed and lastStirredMix are not touched.
+  private emptyFlask() {
+    if (!this.active || this.busy || this.state.drops.length === 0) return
+    this.busy = true
+    this.tooltip.setLocked(true)
+    this.onSound('click')
+    // The slots empty when the flask starts to go back
+    this.flask.playEmpty(
+      () => this.slots.fadeOut(() => {}),
+      () => {
+        this.tooltip.setLocked(false)
+        this.busy = false
+        if (!this.active) return
+        this.state.clear()
+        this.refresh(false)
+      },
+    )
   }
 
   // Redraws everything from the state (no pour: used for show, clear and emptying a slot)
@@ -251,7 +273,7 @@ export class MixView {
   }
 
   private refreshButtons() {
-    this.clearButton.setEnabled(this.state.drops.length > 0)
+    this.emptyButton.setEnabled(this.state.drops.length > 0)
     // Smells are limited, adjusting is not. Once the smells are used up, Deliver replaces Smell.
     // smellsUsed only changes in the REACT phase, and show() calls this when MIX opens again.
     const outOfSmells = this.state.smellsUsed >= MAX_SMELLS

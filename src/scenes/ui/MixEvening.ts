@@ -2,12 +2,12 @@ import Phaser from 'phaser'
 import { addGlow, ensureGlowTexture } from './glow'
 
 // The evening look for the MIX phase, drawn over the counter_view picture and behind the
-// bottles and flask. Positions are in 1280x720 canvas pixels; tune everything here.
+// bottles and flask. Positions are in 1280x720 canvas pixels, measured on the arched window and the lantern of counter_view.jpg; tune everything here.
 const FADE_MS = 400
 const TINTED_COPY = { tint: 0xffa66b, alpha: 0.5 }
 const VIOLET = { color: 0x3a2060, alpha: 0.2 }
-const WINDOW_GLOW = { x: 110, y: 300, radius: 200, color: 0xff8a3d, alpha: 1 } // low sun through the window
-const LANTERN_GLOW = { x: 343, y: 165, radius: 110, color: 0xffc266, alpha: 1 } // the hanging lantern
+const WINDOW_GLOW = { x: 210, y: 260, radius: 190, color: 0xff8a3d, alpha: 1 } // low sun through the window
+const LANTERN_GLOW = { x: 398, y: 100, radius: 110, color: 0xffc266, alpha: 1 } // the hanging lantern
 
 export class MixEvening {
   private scene: Phaser.Scene

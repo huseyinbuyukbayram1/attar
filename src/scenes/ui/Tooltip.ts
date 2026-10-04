@@ -9,6 +9,7 @@ const PADDING_X = 14
 export class Tooltip extends Phaser.GameObjects.Container {
   private background: Phaser.GameObjects.Graphics
   private label: Phaser.GameObjects.Text
+  private locked = false // while true, show() does nothing (during a pour or an emptying)
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0)
@@ -23,6 +24,7 @@ export class Tooltip extends Phaser.GameObjects.Container {
 
   // Puts the pill centered above (anchorX, anchorY), nudged so it stays inside the canvas
   show(text: string, anchorX: number, anchorY: number) {
+    if (this.locked) return
     this.label.setText(text)
     const width = this.label.width + PADDING_X * 2
     const x = Phaser.Math.Clamp(anchorX, MARGIN + width / 2, this.scene.scale.width - MARGIN - width / 2)
@@ -31,6 +33,12 @@ export class Tooltip extends Phaser.GameObjects.Container {
     this.background.clear()
     drawPanel(this.background, 0, 0, width, HEIGHT, HEIGHT / 2)
     this.setVisible(true)
+  }
+
+  // Locking also hides the tooltip that is showing now
+  setLocked(locked: boolean) {
+    this.locked = locked
+    if (locked) this.hide()
   }
 
   hide() {

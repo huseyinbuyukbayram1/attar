@@ -1,42 +1,30 @@
 import Phaser from 'phaser'
 import { addGlow, ensureGlowTexture } from './glow'
 
-// Candle flames and string-light bulbs of the counter_view picture, as soft glows. Positions are
-// in 1280x720 canvas pixels (counter_view.jpg is 1600x900, shown at 80%); they were checked
-// against the picture. Tune everything here.
-const CANDLES = {
-  radius: 38,
-  color: 0xffc266,
-  points: [
-    { x: 606, y: 174 },
-    { x: 877, y: 176 },
-    { x: 735, y: 326 },
-  ],
-  min: 0.75, // alpha swings between min and 1
-  durationMs: { min: 900, max: 1300 }, // slow flicker, each candle a different speed
-  maxDelayMs: 800, // random start delay, so the candles are not in step
-}
+// String-light bulbs and the hanging lantern of the counter_view picture, as soft glows. Positions
+// are in 1280x720 canvas pixels (counter_view.jpg is 1600x900, shown at 80%); each was measured on
+// the picture. Tune everything here.
 const BULBS = {
   radius: 14,
   color: 0xffe3a0,
   points: [
-    { x: 277, y: 112 },
-    { x: 415, y: 135 },
-    { x: 467, y: 117 },
-    { x: 580, y: 121 },
-    { x: 646, y: 135 },
-    { x: 725, y: 127 },
-    { x: 789, y: 103 },
-    { x: 850, y: 115 },
-    { x: 932, y: 134 },
-    { x: 1016, y: 124 },
-    { x: 1173, y: 75 },
-    { x: 1227, y: 77 },
+    { x: 251, y: 66 },
+    { x: 282, y: 90 },
+    { x: 313, y: 112 },
+    { x: 349, y: 115 },
+    { x: 460, y: 114 },
+    { x: 503, y: 126 },
+    { x: 551, y: 128 },
+    { x: 600, y: 118 },
+    { x: 644, y: 102 },
   ],
   min: 0.8,
   durationMs: { min: 1600, max: 2400 },
   maxDelayMs: 2400,
 }
+// The lantern: a warm glow that is dim in the morning and strong in the evening (BRIGHTNESS below),
+// with a gentle slow flicker in the evening only
+const LANTERN = { x: 398, y: 100, radius: 70, color: 0xffc266, flickerMin: 0.85, flickerMs: 1800 }
 const BRIGHTNESS = { morning: 0.35, evening: 1 } // multiplies every glow
 const FADE_MS = 400 // same as the evening look in MIX
 
@@ -45,17 +33,19 @@ const FADE_MS = 400 // same as the evening look in MIX
 export class MixLights {
   private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
+  private lantern: Phaser.GameObjects.Image
 
   constructor(scene: Phaser.Scene, depth: number) {
     this.scene = scene
     ensureGlowTexture(scene)
     this.root = scene.add.container(0, 0).setDepth(depth).setVisible(false)
-    this.addGlows(CANDLES)
     this.addGlows(BULBS)
+    this.lantern = addGlow(scene, LANTERN.x, LANTERN.y, LANTERN.radius, LANTERN.color)
+    this.root.add(this.lantern)
   }
 
   // One glow per point, each with its own endless alpha pulse
-  private addGlows(group: typeof CANDLES | typeof BULBS) {
+  private addGlows(group: typeof BULBS) {
     for (const point of group.points) {
       const glow = addGlow(this.scene, point.x, point.y, group.radius, group.color)
       this.root.add(glow)
@@ -74,17 +64,28 @@ export class MixLights {
   // Called when the MIX phase starts: evening fades up to full brightness, morning stays dim
   show(evening: boolean) {
     this.scene.tweens.killTweensOf(this.root)
+    this.scene.tweens.killTweensOf(this.lantern)
+    this.lantern.setAlpha(1)
     this.root.setVisible(true)
     if (!evening) {
       this.root.setAlpha(BRIGHTNESS.morning)
       return
     }
+    this.scene.tweens.add({
+      targets: this.lantern,
+      alpha: LANTERN.flickerMin,
+      duration: LANTERN.flickerMs,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
     this.root.setAlpha(BRIGHTNESS.morning)
     this.scene.tweens.add({ targets: this.root, alpha: BRIGHTNESS.evening, duration: FADE_MS })
   }
 
   hide() {
     this.scene.tweens.killTweensOf(this.root)
+    this.scene.tweens.killTweensOf(this.lantern)
     this.root.setVisible(false)
   }
 }

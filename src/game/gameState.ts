@@ -55,11 +55,7 @@ export class GameState {
     return free
   }
 
-  // Empties just one slot, so the player can swap a single drop after a smell
-  removeSlot(index: number) {
-    this.slots[index] = null
-  }
-
+  // The only way to take drops out: empty the whole flask
   clear() {
     this.slots.fill(null)
   }

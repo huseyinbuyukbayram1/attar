@@ -6,8 +6,9 @@ const DROPLETS = { count: 4, radius: 2.5, fallMs: 200 }
 // Time after the start when the stream first touches the flask (used to time the slot pop)
 export const STREAM_REACH_MS = STREAM.ms * STREAM.extendShare
 
-// A thin stream of liquid falling from (x, top) to (x, bottom), with a few droplets along it.
-// The stream grows from the bottle mouth downwards, stays for a moment, then its top end follows
+// A thin stream of liquid falling straight down from (x, top) to (x, bottom), with a few droplets
+// along it. x never changes, so the stream is a vertical line from its first frame to its last.
+// The stream grows from `top` downwards, stays for a moment, then its top end follows
 // down so it looks like the pouring stops. Everything is added to `parent` and removed at the end.
 export function playPourStream(
   scene: Phaser.Scene,
@@ -17,6 +18,7 @@ export function playPourStream(
   bottom: number,
   color: number,
   onDone: () => void,
+  dropletEndAlpha = 0.4, // the droplets fade to this while falling
 ) {
   const stream = scene.add.graphics()
   parent.add(stream)
@@ -43,16 +45,22 @@ export function playPourStream(
     },
   })
 
-  // Droplets start one after another and fall along the stream, a little off to each side
+  // Droplets start one after another at the top and fall straight down the same line.
+  // Each one is hidden until its turn.
   for (let i = 0; i < DROPLETS.count; i++) {
-    const drop = scene.add.circle(x + Phaser.Math.Between(-3, 3), top, DROPLETS.radius, color)
+    const drop = scene.add.circle(0, 0, DROPLETS.radius, color).setVisible(false)
     parent.add(drop)
+    const fall = { t: 0 }
     scene.tweens.add({
-      targets: drop,
-      y: bottom,
-      alpha: 0.4,
+      targets: fall,
+      t: 1,
       delay: (i * STREAM.ms * 0.6) / DROPLETS.count,
       duration: DROPLETS.fallMs,
+      onStart: () => drop.setVisible(true),
+      onUpdate: () => {
+        drop.setPosition(x, Phaser.Math.Linear(top, bottom, fall.t))
+        drop.setAlpha(Phaser.Math.Linear(1, dropletEndAlpha, fall.t))
+      },
       onComplete: () => drop.destroy(),
     })
   }

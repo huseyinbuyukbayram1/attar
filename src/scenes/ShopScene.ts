@@ -8,6 +8,7 @@ import { hintFor, mixScent, scoreMix } from '../game/scoring'
 import type { Stars } from '../game/scoring'
 import { CustomerArt } from './ui/CustomerArt'
 import { addCounterCrop } from './ui/counterCrop'
+import { addCounterDarken } from './ui/counterBand'
 import { ContactSheet } from './ui/ContactSheet'
 import { DayCard } from './ui/DayCard'
 import { EVENING_FADE_MS, EveningOverlay } from './ui/EveningOverlay'
@@ -40,8 +41,9 @@ const DEPTH = {
   counter: -70, // morning counter crop
   eveningCounter: -60, // evening-tinted counter crop
   mixBackdrop: -50, // only shown in the MIX phase
+  mixCounterDarken: -45, // darkens the light-orange counter top; above the picture, below the evening look
   mixEvening: -40, // evening look over the mix backdrop, behind the bottles and flask
-  mixLights: -30, // candle and bulb glows, above the evening look
+  mixLights: -30, // lantern and bulb glows, above the evening look
 }
 const MIX_FALLBACK_COLOR = 0x2a1a10 // plain warm brown if counter_view.jpg is missing
 const FADE_COLOR = 0x1a1210
@@ -341,6 +343,7 @@ export class ShopScene extends Phaser.Scene {
     if (this.textures.exists('counter_view')) {
       this.mixBackdrop.push(
         this.add.image(width / 2, height / 2, 'counter_view').setDisplaySize(width, height).setDepth(DEPTH.mixBackdrop),
+        addCounterDarken(this).setDepth(DEPTH.mixCounterDarken),
       )
     } else {
       console.warn('Texture "counter_view" missing, using a colored rectangle')

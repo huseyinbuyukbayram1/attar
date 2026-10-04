@@ -10,29 +10,26 @@ import type { Tooltip } from './Tooltip'
 const SPACING = 36
 const ROW = { firstX: FLASK_X - ((MAX_DROPS - 1) * SPACING) / 2, spacing: SPACING, y: 662, radius: 15 } // centered under the flask
 const POP = { scale: 1.25, ms: 150 } // a slot pops when a drop arrives
+const FADE_MS = 250 // the slots empty with a short fade when the flask is emptied
 const TOOLTIP_GAP = 6 // space between the top of a slot and its tooltip
 
-// The six drop slots. Filled slots show the ingredient color; hovering one shows its name, and
-// clicking a filled slot empties just that one. It is a Container so shake() can wiggle the row.
+// The six drop slots. Display only: filled slots show the ingredient colors in the order they were
+// poured, and hovering one shows its name. A drop cannot be taken out once it is in the flask.
 export class DropSlots extends Phaser.GameObjects.Container {
   private filled: (Phaser.GameObjects.Arc | null)[] = [] // one entry per slot, redrawn on every change
   private current: (string | null)[] = []
 
-  constructor(scene: Phaser.Scene, tooltip: Tooltip, onSlotClick: (index: number) => void) {
+  constructor(scene: Phaser.Scene, tooltip: Tooltip) {
     super(scene, 0, 0)
     scene.add.existing(this)
 
-    // The empty outlines are the interactive part; the colored circles drawn on top are not,
-    // so clicks and hovers fall through to the outline underneath.
+    // The empty outlines are the hover targets (no hand cursor, they cannot be clicked); the
+    // colored circles drawn on top are not interactive, so hovers fall through to the outline.
     for (let i = 0; i < MAX_DROPS; i++) {
       const outline = scene.add
         .circle(this.slotX(i), ROW.y, ROW.radius)
         .setStrokeStyle(2, CREAM, 0.6)
-        .setInteractive({ useHandCursor: true })
-      outline.on('pointerdown', () => {
-        tooltip.hide() // the slot is about to be emptied
-        onSlotClick(i)
-      })
+        .setInteractive()
       outline.on('pointerover', () => {
         const id = this.current[i]
         if (!id) return
@@ -59,6 +56,16 @@ export class DropSlots extends Phaser.GameObjects.Container {
       this.add(dot)
       this.filled.push(dot)
     })
+  }
+
+  // Fades all filled circles out; the caller redraws the empty slots afterwards
+  fadeOut(onDone: () => void) {
+    const dots = this.filled.filter((dot) => dot !== null)
+    if (dots.length === 0) {
+      onDone()
+      return
+    }
+    this.scene.tweens.add({ targets: dots, alpha: 0, duration: FADE_MS, onComplete: onDone })
   }
 
   // The filled circle of one slot grows a little and settles back, to show a drop landed

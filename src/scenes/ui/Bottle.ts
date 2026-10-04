@@ -18,6 +18,7 @@ const POUR_LIFT = 40 // extra height the bottle rises while it travels to the fl
 const POUR_ANGLE = Phaser.Math.DegToRad(-70) // negative = tilts to the left, towards the flask
 const LABEL_FADE_MS = 120 // the name pill hides while the bottle is tilted
 const SHAKE = { px: 4, ms: 50 } // "the flask is full" wiggle
+const MOUTH_DROP_PX = 4 // the stream starts this far below the very top of the picture (the stopper / lid)
 const SHADOW_FADE_PX = 120 // lifted this high (pour flight), the shadow is at its faintest
 
 // Where one bottle stands: x = center, bottom = the line it stands on, height = displayed height.
@@ -44,7 +45,10 @@ export class Bottle extends Phaser.GameObjects.Container {
   // The owner adds it to the same container, just before the bottle.
   readonly shadow: Phaser.GameObjects.Ellipse
   private hoverFade = { t: 0 } // 0..1, 1 while hovered (the shadow fades)
-  private restOffset = 0 // how far the sprite sits below the container (the empty rows under the glass)
+  // Where the mouth is, in the container's own coordinates, for the sprite as it is right now
+  private pouring = false // true from the click until the bottle is home again: hover does nothing
+  private resetSprite: () => void = () => {} // stops hover tweens and puts the sprite in its resting pose
+  private mouthLocal: (restPose: boolean) => { x: number; y: number } = () => ({ x: 0, y: 0 })
 
   constructor(
     scene: Phaser.Scene,
@@ -71,8 +75,22 @@ export class Bottle extends Phaser.GameObjects.Container {
       const baseScale = layout.height / sprite.height
       const glass = measureGlass(scene, textureKey)
       rest = glass.gapBelow * baseScale
-      this.restOffset = rest
       sprite.setScale(baseScale).setY(rest)
+      // The mouth's texture point, turned into container coordinates. Origin is bottom center, so
+      // a texture point (tx, ty) is at ((tx - width / 2) * scale, y - (height - ty) * scale).
+      // restPose = the bottle as it stands still; otherwise the live scale and y (hover lift).
+      this.mouthLocal = (restPose) => {
+        const scale = restPose ? baseScale : sprite.scaleX
+        const y = restPose ? rest : sprite.y
+        return {
+          x: (glass.mouthX - sprite.width / 2) * scale,
+          y: y - (sprite.height - glass.mouthY) * scale + MOUTH_DROP_PX,
+        }
+      }
+      this.resetSprite = () => {
+        scene.tweens.killTweensOf(sprite)
+        sprite.setScale(baseScale).setY(rest)
+      }
       hitTarget = sprite
       shadowWidth = glass.width * baseScale
       this.applyTint = (tint) => sprite.setTint(tint)
@@ -89,6 +107,11 @@ export class Bottle extends Phaser.GameObjects.Container {
     } else {
       // Missing art: a plain colored block of about the same size, so the game stays playable
       const block = scene.add.rectangle(0, 0, layout.height * 0.6, layout.height, this.color).setOrigin(0.5, 1)
+      this.mouthLocal = () => ({ x: 0, y: block.y - layout.height })
+      this.resetSprite = () => {
+        scene.tweens.killTweensOf(block)
+        block.setY(0)
+      }
       hitTarget = block
       this.applyTint = (tint) => block.setFillStyle(tint)
       hover = (lifted) => {
@@ -113,10 +136,12 @@ export class Bottle extends Phaser.GameObjects.Container {
     hitTarget.setInteractive({ useHandCursor: true })
     hitTarget.on('pointerdown', () => onPick())
     hitTarget.on('pointerover', () => {
+      if (this.pouring) return
       hover(true)
       tooltip.show(tooltipText, this.x, layout.tooltipY)
     })
     hitTarget.on('pointerout', () => {
+      if (this.pouring) return
       hover(false)
       tooltip.hide()
     })
@@ -127,14 +152,35 @@ export class Bottle extends Phaser.GameObjects.Container {
     this.applyTint(evening ? multiplyColor(this.color, EVENING_TINT) : this.color)
   }
 
+  // Step 1 of a pour: stop every hover tween and put the bottle in its resting pose (scale 1,
+  // base y), so the mouth position that flyToMouth solves for is the one the bottle really has.
+  // Hover does nothing until endPour().
+  beginPour() {
+    this.pouring = true
+    this.scene.tweens.killTweensOf([this, this.hoverFade, this.shadow])
+    this.resetSprite()
+    this.hoverFade.t = 0
+    this.updateShadow()
+  }
+
+  endPour() {
+    this.pouring = false
+  }
+
   // Lifts and tilts the bottle so its mouth ends up exactly at `mouth` (canvas pixels)
   flyToMouth(mouth: { x: number; y: number }, ms: number, onDone: () => void) {
-    // The mouth is the top center of the sprite, (0, restOffset - height) in the bottle's own coordinates.
-    // Rotating that point by the angle tells where the container must be for the mouth to land.
-    const top = this.restOffset - this.layout.height
-    const x = mouth.x + top * Math.sin(POUR_ANGLE)
-    const y = mouth.y - top * Math.cos(POUR_ANGLE)
-    this.glide(x, y, POUR_ANGLE, 0, ms, POUR_LIFT, onDone)
+    // Where the mouth is relative to the container when the bottle is tilted; the container
+    // must stand that far from the target (the mouth is what has to land on it).
+    const offset = this.mouthAt(0, 0, POUR_ANGLE, true)
+    this.glide(mouth.x - offset.x, mouth.y - offset.y, POUR_ANGLE, 0, ms, POUR_LIFT, onDone)
+  }
+
+  // The mouth point of a bottle standing at (x, y) and turned by `rotation`
+  private mouthAt(x: number, y: number, rotation: number, restPose: boolean): { x: number; y: number } {
+    const local = this.mouthLocal(restPose)
+    const cos = Math.cos(rotation)
+    const sin = Math.sin(rotation)
+    return { x: x + local.x * cos - local.y * sin, y: y + local.x * sin + local.y * cos }
   }
 
   // Back to the exact spot on the counter, upright
