@@ -34,3 +34,18 @@ Findings for the devlog:
 - [ ] Optional: remove the blue tile medallion from shop_morning (web app edit step failed).
 - [ ] Replace the realistic customer portraits (Leyla, Mr. Orhan, Selim) with stylized versions.
 - [ ] Idea: finishing step on delivery, a short skippable 3 s animation (oil or alcohol poured into the flask, shake, pour into the round bottle, cork, "For <name>" label). Zero credits, only if time remains.
+
+## Audio credits
+
+All sound effects and ambience loops come from Pixabay (pixabay.com), used under the Pixabay Content License (commercial use, no attribution required). Per-file page links: TODO (optional).
+
+| file | event |
+| --- | --- |
+| ambience_morning.mp3 | ambienceMorning (loop) |
+| ambience_evening.mp3 | ambienceEvening (loop) |
+| bottle.mp3 | bottle |
+| pour.mp3 | pour |
+| mix.mp3 | mix |
+| smell.mp3 | smell |
+| deliver.mp3 | deliver |
+| click.mp3 | click |

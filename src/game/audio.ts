@@ -7,17 +7,17 @@ import type { TimeOfDay } from './gameState'
 export type SoundEvent = 'ambienceMorning' | 'ambienceEvening' | 'bottle' | 'pour' | 'mix' | 'smell' | 'deliver' | 'click'
 
 // Event -> file name inside public/assets/audio/. null = there is no matching file, so the
-// event is silent. public/assets/audio/ was empty when this was written, so everything is null:
-// drop files in there and write their names here (nothing else needs to change).
+// event is silent. Matched by file name; to add a sound, drop the file in the folder and write
+// its name here (nothing else needs to change).
 export const SOUND_FILES: Record<SoundEvent, string | null> = {
-  ambienceMorning: null,
-  ambienceEvening: null,
-  bottle: null,
-  pour: null,
-  mix: null,
-  smell: null,
-  deliver: null,
-  click: null,
+  ambienceMorning: 'ambience_morning.mp3',
+  ambienceEvening: 'ambience_evening.mp3',
+  bottle: 'bottle.mp3',
+  pour: 'pour.mp3',
+  mix: 'mix.mp3',
+  smell: 'smell.mp3',
+  deliver: 'deliver.mp3',
+  click: 'click.mp3',
 }
 
 const AUDIO_FOLDER = 'assets/audio/'
