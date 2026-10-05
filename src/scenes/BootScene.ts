@@ -28,6 +28,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('mixing_flask', 'assets/bottles/mixing_flask.png')
     // The closed notebook on the counter; without it the MIX view draws a simple book in code
     this.load.image('notebook_closed', 'assets/props/notebook_closed.png')
+    // The open notebook (1100x703), the background of the ingredient notebook panel
+    this.load.image('notebook_open', 'assets/props/notebook_open.png')
     // The waste pot that rises behind the flask when it is emptied; without it the animation has no pot
     this.load.image('waste_pot', 'assets/props/waste_pot.png')
     // Optional art for the two endings; without it EndingScene uses the shop background with an overlay
