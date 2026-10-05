@@ -5,7 +5,7 @@ import type { Axis, Ingredient } from '../../data/ingredients'
 import { createShadow, SHADOW } from './counterBand'
 import { measureGlass } from './glassBox'
 import { multiplyColor } from './liquidColor'
-import { addPanel, FONT, TEXT_COLOR } from './theme'
+import { FONT, TEXT_COLOR } from './theme'
 import type { Tooltip } from './Tooltip'
 
 export const HOVER_SCALE = 1.08
@@ -13,6 +13,9 @@ export const HOVER_LIFT = 8 // pixels the bottle rises on hover
 const HOVER_MS = 120
 // Name pill under the bottle, `belowShadow` px under the shadow (so never over it)
 const LABEL = { height: 22, padding: 16, minWidth: 56, belowShadow: 6 }
+// The look of the name label: an apothecary label, drawn with shapes (too small for the plate's ornaments).
+// Parchment (the plate's middle color), a thin copper border inside a fine dark ink outline.
+const LABEL_LOOK = { fill: 0xf2e8d8, copper: 0xb0643c, copperWidth: 1.5, ink: 0x3b2412, inkWidth: 1, radius: 5 }
 const EVENING_TINT = 0xffd9b0 // multiplied into the ingredient color in the evening
 const POUR_LIFT = 40 // extra height the bottle rises while it travels to the flask
 const POUR_ANGLE = Phaser.Math.DegToRad(-70) // negative = tilts to the left, towards the flask
@@ -130,7 +133,7 @@ export class Bottle extends Phaser.GameObjects.Container {
       .setOrigin(0.5)
     const pillWidth = Math.max(LABEL.minWidth, name.width + LABEL.padding)
     // Its own container, so the pill can fade out as one piece while the bottle is tilted
-    this.label = scene.add.container(0, 0, [addPanel(scene, 0, labelY, pillWidth, LABEL.height, LABEL.height / 2), name])
+    this.label = scene.add.container(0, 0, [this.drawLabelPlate(0, labelY, pillWidth, LABEL.height), name])
     this.add(this.label)
 
     hitTarget.setInteractive({ useHandCursor: true })
@@ -145,6 +148,20 @@ export class Bottle extends Phaser.GameObjects.Container {
       hover(false)
       tooltip.hide()
     })
+  }
+
+  private drawLabelPlate(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics {
+    const { fill, copper, copperWidth, ink, inkWidth, radius } = LABEL_LOOK
+    const g = this.scene.add.graphics()
+    const left = x - width / 2
+    const top = y - height / 2
+    g.fillStyle(fill, 1)
+    g.fillRoundedRect(left, top, width, height, radius)
+    g.lineStyle(copperWidth, copper, 1) // the copper border, just inside the outline
+    g.strokeRoundedRect(left + inkWidth + copperWidth / 2, top + inkWidth + copperWidth / 2, width - 2 * (inkWidth + copperWidth / 2), height - 2 * (inkWidth + copperWidth / 2), radius - 1)
+    g.lineStyle(inkWidth, ink, 1) // the fine ink outline
+    g.strokeRoundedRect(left, top, width, height, radius)
+    return g
   }
 
   // Evening: the ingredient color is multiplied with a warm tint. Morning: the plain color.

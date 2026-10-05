@@ -1,17 +1,16 @@
 import Phaser from 'phaser'
 import type { Order } from '../../data/customers'
 import { INGREDIENTS } from '../../data/ingredients'
+import { PlatePanel } from './PlateButton'
 import { FONT } from './theme'
 
 // The order note on the MIX screen: a small parchment card that reminds the player of the order and
 // the latest hint, so nothing has to be remembered. It only shows values it is given; it changes no
 // game state and has no interactive objects, so clicks go straight through it.
 // Position (top-right, below the money HUD, above the bottles' tooltips): x = center, y = top edge.
-const NOTE = { x: 1147, y: 74, width: 224, padding: 12, radius: 10 }
-const PARCHMENT = 0xf3e2b8
+const NOTE = { x: 1147, y: 74, width: 224, padding: { x: 28, y: 24 } } // padding keeps the text clear of the plate's border and corners
 const INK = 0x3b2412
 const INK_CSS = '#3b2412'
-const BORDER_WIDTH = 1.5
 const FONT_SIZE = { name: 15, order: 14, hintLabel: 13, hint: 14, smelled: 13, smells: 13 } // px
 const GAP = { afterName: 4, afterOrder: 10, afterDivider: 8, afterHintLabel: 2, afterHint: 6, afterSmelled: 10 } // px between the parts
 const DIVIDER_ALPHA = 0.5
@@ -63,9 +62,9 @@ export class OrderNote {
     const { scene } = this
     this.root.removeAll(true)
     if (!this.order) return
-    const inner = NOTE.width - NOTE.padding * 2
-    const left = NOTE.x - NOTE.width / 2 + NOTE.padding
-    let y = NOTE.y + NOTE.padding
+    const inner = NOTE.width - NOTE.padding.x * 2
+    const left = NOTE.x - NOTE.width / 2 + NOTE.padding.x
+    let y = NOTE.y + NOTE.padding.y
 
     const text = (str: string, size: number, bold = false) => {
       const t = scene.add
@@ -99,7 +98,7 @@ export class OrderNote {
       texts.push(text(this.hint, FONT_SIZE.hint))
       // The flash goes behind the hint text, a little larger than it
       flash = scene.add
-        .rectangle(NOTE.x, (blockTop + y) / 2, NOTE.width - NOTE.padding, y - blockTop + 6, FLASH.color)
+        .rectangle(NOTE.x, (blockTop + y) / 2, inner + 12, y - blockTop + 6, FLASH.color)
         .setAlpha(0)
       y += GAP.afterHint
       if (this.smelled) {
@@ -110,12 +109,8 @@ export class OrderNote {
     texts.push(text(`Smells left: ${this.smellsLeft}`, FONT_SIZE.smells))
 
     // The card itself, sized to what was written, drawn first (behind everything)
-    const height = y + NOTE.padding - NOTE.y
-    const card = scene.add.graphics()
-    card.fillStyle(PARCHMENT, 0.97)
-    card.fillRoundedRect(NOTE.x - NOTE.width / 2, NOTE.y, NOTE.width, height, NOTE.radius)
-    card.lineStyle(BORDER_WIDTH, INK, 1)
-    card.strokeRoundedRect(NOTE.x - NOTE.width / 2, NOTE.y, NOTE.width, height, NOTE.radius)
+    const height = y + NOTE.padding.y - NOTE.y
+    const card = new PlatePanel(scene, NOTE.x, NOTE.y + height / 2, NOTE.width, height)
     this.root.add([card, ...(flash ? [flash] : []), ...texts])
 
     if (flash && this.hintIsNew) {

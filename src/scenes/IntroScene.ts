@@ -1,8 +1,8 @@
 import Phaser from 'phaser'
 import { DEBT, formatMoney } from '../game/economy'
-import { Button } from './ui/Button'
+import { addPlateLabel, PlateButton, PlatePanel } from './ui/PlateButton'
 import { addFullImage } from './ui/fullImage'
-import { addPanel, addPillLabel, FONT, TEXT_COLOR } from './ui/theme'
+import { FONT, TEXT_COLOR } from './ui/theme'
 
 const LINES = [
   'The old master has passed away.',
@@ -39,7 +39,7 @@ export class IntroScene extends Phaser.Scene {
     const veil = this.add.rectangle(width / 2, height / 2, width, height, DIM.color, DIM.alpha).setInteractive()
     veil.on('pointerdown', () => this.advance())
 
-    addPanel(this, PANEL.x, PANEL.y, PANEL.width, PANEL.height, 24)
+    new PlatePanel(this, PANEL.x, PANEL.y, PANEL.width, PANEL.height)
     this.lineText = this.add
       .text(PANEL.x, PANEL.y, '', {
         fontFamily: FONT,
@@ -49,8 +49,8 @@ export class IntroScene extends Phaser.Scene {
         wordWrap: { width: PANEL.width - 80 },
       })
       .setOrigin(0.5)
-    addPillLabel(this, HINT.x, HINT.y, HINT.width, HINT.height, 'Click or press SPACE to continue', 16)
-    new Button(this, SKIP.x, SKIP.y, SKIP.width, SKIP.height, 'Skip', () => this.finish())
+    addPlateLabel(this, HINT.x, HINT.y, HINT.width, HINT.height, 'Click or press SPACE to continue', 16)
+    new PlateButton(this, SKIP.x, SKIP.y, { label: 'Skip', width: SKIP.width, height: SKIP.height, variant: 'short', onClick: () => this.finish() })
 
     const keyboard = this.input.keyboard
     const onSpace = () => this.advance()

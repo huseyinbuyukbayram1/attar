@@ -1,18 +1,20 @@
 import Phaser from 'phaser'
-import { drawPanel, FONT, TEXT_COLOR } from './theme'
+import { PlatePanel, TAG_CORNER_SCALE } from './PlateButton'
+import { FONT, TEXT_COLOR } from './theme'
 
 // Layout numbers for the 1280x720 screen. The top edge is fixed; the box grows downwards.
 const BOX = { x: 640, top: 50, minWidth: 420, maxWidth: 760, minHeight: 100 }
-const PADDING = { x: 24, y: 20 }
-const TAG = { width: 170, height: 30, inset: 12, overlap: 6 } // name tag on the top-left corner
-const RADIUS = 20
+// Room between the text and the plate's border and corner ornaments
+const PADDING = { x: 40, y: 30 }
+const TAG = { width: 170, height: 34, inset: 18, overlap: 8 } // name tag on the top-left corner
 
 // The customer's speech bubble plus a name tag. Used for the order and for the reaction.
 // The box is sized to its text, so short lines get a small bubble.
 export class SpeechBox {
   private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
-  private background: Phaser.GameObjects.Graphics
+  private background: PlatePanel
+  private tag: PlatePanel
   private nameText: Phaser.GameObjects.Text
   private speechText: Phaser.GameObjects.Text
 
@@ -20,7 +22,8 @@ export class SpeechBox {
     this.scene = scene
     // Children use positions relative to the top-center of the box, so the whole thing moves as one
     this.root = scene.add.container(BOX.x, BOX.top)
-    this.background = scene.add.graphics()
+    this.background = new PlatePanel(scene, 0, 0, BOX.minWidth, BOX.minHeight)
+    this.tag = new PlatePanel(scene, 0, 0, TAG.width, TAG.height, TAG_CORNER_SCALE)
     this.nameText = scene.add
       .text(0, 0, '', { fontFamily: FONT, fontSize: '18px', color: TEXT_COLOR })
       .setOrigin(0.5)
@@ -34,7 +37,7 @@ export class SpeechBox {
         wordWrap: { width: BOX.maxWidth - PADDING.x * 2 },
       })
       .setOrigin(0.5)
-    this.root.add([this.background, this.nameText, this.speechText])
+    this.root.add([this.background, this.tag, this.nameText, this.speechText])
     this.layout()
   }
 
@@ -68,9 +71,9 @@ export class SpeechBox {
     const tagX = -width / 2 + TAG.inset + TAG.width / 2
     const tagY = -TAG.height / 2 + TAG.overlap
 
-    this.background.clear()
-    drawPanel(this.background, 0, height / 2, width, height, RADIUS)
-    drawPanel(this.background, tagX, tagY, TAG.width, TAG.height, TAG.height / 2)
+    this.background.setPosition(0, height / 2)
+    this.background.resize(width, height)
+    this.tag.setPosition(tagX, tagY)
     this.nameText.setPosition(tagX, tagY)
     this.speechText.setPosition(0, height / 2)
   }

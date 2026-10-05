@@ -2,16 +2,17 @@
 
 ## Plan until release (in order)
 1. [x] Money balance playtest (is the target reachable? decides difficulty values). Done: scripts/balance.ts exists for exhaustive analysis.
-2. Hint fix: kitchen hint confusing; harbour hint followed twice but stayed 2★ (from the playtest). scripts/hints.ts simulates a hint-following player: with 2 smells only 15-36% of starts reach 3★, and "too X" does not say whether to remove X or add the rest.
+2. [x] Hints reworked (near-miss 'So close' + two-axis hints with magnitude), verified with scripts/hints.ts; results in assets_raw/hints_output_v2.txt and v3.txt.
 3. Economy rework + difficulty (one task, touches economy/scoring — needs explicit permission):
    - Perfume has a base price; stars decide payment and tip. Draft: 0★ customer refuses ($0), 1★ haggles and pays half ($100), 2★ full price ($200), 3★ full price + tip ($200 + $100).
    - Show payment and tip separately on delivery (ties in with the delivery juice item: stars fill, counter counts up, coin sound).
    - Difficulty: Easy / Normal / Hard targets, draft $1,800 / $2,200 / $2,600; the story text shows the selected debt. (Playtest on the old prices: 6×3★, 3×2★, 1×1★ = $2,460.)
+   - Smells per difficulty: Easy 3, Normal 2, Hard 2 (decide after testing).
    - After the change, re-run scripts/balance.ts with the new prices and confirm the targets.
 4. Button plates via DreamLayer (blank plates, text drawn in code, Phaser NineSlice)
 5. Title screen: shop exterior image, painted "Attar" sign with drop/swing animation, logo, background music, Play + Settings buttons
 6. Settings: music and SFX volume, mute toggles, key bindings list; persist in localStorage
-7. Proper interactive tutorial on the first order: step by step, highlight the relevant object (bottle, flask, Smell, notebook, Deliver), advance when the player does the action.
+7. Proper interactive tutorial on the first order: step by step, highlight the relevant object (bottle, flask, Smell, notebook, Deliver), advance when the player does the action. Tutorial tip: "Close? Add a drop instead of starting over."
 8. End-of-day summary screen (day earnings, total vs target)
 9. Delivery juice: stars fill one by one, money counter counts up, coin sound
 10. Esc pause menu: Resume / Settings / Main menu

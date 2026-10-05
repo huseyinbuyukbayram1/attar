@@ -8,13 +8,13 @@ import type { GameState } from '../../game/gameState'
 import { MAX_DROPS } from '../../game/scoring'
 import { Bottle, HOVER_LIFT, HOVER_SCALE } from './Bottle'
 import type { BottleLayout } from './Bottle'
-import { Button } from './Button'
 import { BASE_FRACTION, baseY } from './counterBand'
 import { DropSlots } from './DropSlots'
 import { Flask } from './Flask'
 import { liquidColor } from './liquidColor'
 import { FINAL_MIX_ENABLED, playMixAnimation } from './mixAnimation'
 import { Notebook } from './Notebook'
+import { PlateButton } from './PlateButton'
 import { OrderNote } from './OrderNote'
 import { playPourStream, STREAM_REACH_MS } from './pourStream'
 import { addPanel, FONT, TEXT_COLOR } from './theme'
@@ -61,9 +61,9 @@ export class MixView {
   private bottles: Bottle[] = []
   private scene: Phaser.Scene
   private slots: DropSlots
-  private emptyButton: Button
-  private smellButton: Button
-  private deliverButton: Button
+  private emptyButton: PlateButton
+  private smellButton: PlateButton
+  private deliverButton: PlateButton
   private noSmellsNote: Phaser.GameObjects.Container
   private active = false
   // The mix as it was when the mix animation last played; null for a new customer. Delivering a
@@ -101,17 +101,30 @@ export class MixView {
 
     this.flask = new Flask(scene)
     this.slots = new DropSlots(scene, tooltip)
-    this.emptyButton = new Button(scene, EMPTY_BUTTON.x, EMPTY_BUTTON.y, EMPTY_BUTTON.width, EMPTY_BUTTON.height, 'Empty the flask', () =>
-      this.emptyFlask(),
-    )
-    this.smellButton = new Button(scene, SMELL.x, SMELL.y, SMELL.width, SMELL.height, 'Let them smell', () => {
-      if (this.active && !this.busy && this.state.canSmell()) this.stir(callbacks.onSmell)
+    this.emptyButton = new PlateButton(scene, EMPTY_BUTTON.x, EMPTY_BUTTON.y, {
+      label: 'Empty the flask',
+      width: EMPTY_BUTTON.width,
+      height: EMPTY_BUTTON.height,
+      onClick: () => this.emptyFlask(),
     })
-    this.deliverButton = new Button(scene, DELIVER.x, DELIVER.y, DELIVER.width, DELIVER.height, 'Deliver', () => {
-      if (!this.active || this.busy || !this.state.canDeliver()) return
-      // Final stir before the score, unless it is switched off
-      if (FINAL_MIX_ENABLED && !this.isStirred()) this.stir(callbacks.onDeliver)
-      else callbacks.onDeliver()
+    this.smellButton = new PlateButton(scene, SMELL.x, SMELL.y, {
+      label: 'Let them smell',
+      width: SMELL.width,
+      height: SMELL.height,
+      onClick: () => {
+        if (this.active && !this.busy && this.state.canSmell()) this.stir(callbacks.onSmell)
+      },
+    })
+    this.deliverButton = new PlateButton(scene, DELIVER.x, DELIVER.y, {
+      label: 'Deliver',
+      width: DELIVER.width,
+      height: DELIVER.height,
+      onClick: () => {
+        if (!this.active || this.busy || !this.state.canDeliver()) return
+        // Final stir before the score, unless it is switched off
+        if (FINAL_MIX_ENABLED && !this.isStirred()) this.stir(callbacks.onDeliver)
+        else callbacks.onDeliver()
+      },
     })
     // The notebook only opens while this view is idle: no pour, no stir, no phase change
     this.notebook = new Notebook(scene, tooltip, {

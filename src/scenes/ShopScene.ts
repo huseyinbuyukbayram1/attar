@@ -19,7 +19,7 @@ import { MixView } from './ui/MixView'
 import { OrderView } from './ui/OrderView'
 import { ReactView } from './ui/ReactView'
 import { SpeechBox } from './ui/SpeechBox'
-import { addPillLabel } from './ui/theme'
+import { addPlateLabel } from './ui/PlateButton'
 
 export const TRANSITION_MS = 350 // total time of a fade between phases (half out, half in)
 // Timing of the pause between customers (the leave, enter and evening times live with their art)
@@ -121,8 +121,8 @@ export class ShopScene extends Phaser.Scene {
     this.mixEvening = new MixEvening(this, 'counter_view', DEPTH.mixEvening)
     this.mixLights = new MixLights(this, DEPTH.mixLights)
 
-    addPillLabel(this, TITLE.x, TITLE.y, TITLE.width, TITLE.height, 'Attar', 32)
-    this.hud = addPillLabel(this, HUD.x, HUD.y, HUD.width, HUD.height, '', 18)
+    addPlateLabel(this, TITLE.x, TITLE.y, TITLE.width, TITLE.height, 'Attar', 32)
+    this.hud = addPlateLabel(this, HUD.x, HUD.y, HUD.width, HUD.height, '', 18)
 
     this.speech = new SpeechBox(this)
     this.orderView = new OrderView(this, () => {

@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { Button } from './Button'
+import { PlateButton } from './PlateButton'
 
 const BUTTON_Y = 640
 const BUTTON_HEIGHT = 58
@@ -13,16 +13,16 @@ type Callbacks = { onAdjust: () => void; onDeliver: () => void; onNext: () => vo
 // "choices" (Adjust / Deliver) and, after delivering, "next" (Next customer).
 export class ReactView {
   private root: Phaser.GameObjects.Container
-  private adjustButton: Button
-  private deliverButton: Button
-  private nextButton: Button
+  private adjustButton: PlateButton
+  private deliverButton: PlateButton
+  private nextButton: PlateButton
 
   constructor(scene: Phaser.Scene, callbacks: Callbacks) {
     this.root = scene.add.container(0, 0)
     const h = BUTTON_HEIGHT
-    this.adjustButton = new Button(scene, ADJUST.x, BUTTON_Y, ADJUST.width, h, 'Adjust', callbacks.onAdjust)
-    this.deliverButton = new Button(scene, DELIVER.x, BUTTON_Y, DELIVER.width, h, 'Deliver', callbacks.onDeliver)
-    this.nextButton = new Button(scene, NEXT.x, BUTTON_Y, NEXT.width, h, 'Next customer', callbacks.onNext)
+    this.adjustButton = new PlateButton(scene, ADJUST.x, BUTTON_Y, { label: 'Adjust', width: ADJUST.width, height: h, onClick: callbacks.onAdjust })
+    this.deliverButton = new PlateButton(scene, DELIVER.x, BUTTON_Y, { label: 'Deliver', width: DELIVER.width, height: h, onClick: callbacks.onDeliver })
+    this.nextButton = new PlateButton(scene, NEXT.x, BUTTON_Y, { label: 'Next customer', width: NEXT.width, height: h, onClick: callbacks.onNext })
     this.root.add([this.adjustButton, this.deliverButton, this.nextButton])
   }
 

@@ -1,8 +1,8 @@
 import Phaser from 'phaser'
 import { DEBT, formatMoney, GREAT_WIN_MONEY } from '../game/economy'
-import { Button } from './ui/Button'
+import { PlateButton, PlatePanel } from './ui/PlateButton'
 import { addFullImage } from './ui/fullImage'
-import { addPanel, FONT, TEXT_COLOR } from './ui/theme'
+import { FONT, TEXT_COLOR } from './ui/theme'
 
 // Fallback backgrounds (the shop with an overlay) when no ending art exists
 const WIN_LOOK = { tint: 0xffffff, overlay: 0x4a2e14, overlayAlpha: 0.3 } // warm, a bit lighter
@@ -38,14 +38,17 @@ export class EndingScene extends Phaser.Scene {
       : [`You were ${formatMoney(DEBT - this.money)} short.`, "The bank closed the master's door for the last time."]
     if (won && this.money >= GREAT_WIN_MONEY) lines.push('Customers are lining up outside.')
 
-    addPanel(this, PANEL.x, PANEL.y, PANEL.width, PANEL.height, 28)
+    new PlatePanel(this, PANEL.x, PANEL.y, PANEL.width, PANEL.height)
     this.addText(TITLE_Y, won ? 'The shop is saved' : 'The shop is sold', 52)
     lines.forEach((line, i) => this.addText(FIRST_LINE_Y + i * LINE_SPACING, line, 26))
     this.addText(MONEY_Y, `${formatMoney(this.money)} / ${formatMoney(DEBT)}`, 34)
 
     // Starting ShopScene again runs its create() with a fresh GameState, straight to day 1 (no intro)
-    new Button(this, BUTTON.x, BUTTON.y, BUTTON.width, BUTTON.height, 'Try again', () => {
-      this.scene.start('ShopScene')
+    new PlateButton(this, BUTTON.x, BUTTON.y, {
+      label: 'Try again',
+      width: BUTTON.width,
+      height: BUTTON.height,
+      onClick: () => this.scene.start('ShopScene'),
     })
   }
 

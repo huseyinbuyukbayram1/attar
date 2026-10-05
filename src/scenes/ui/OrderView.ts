@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { Button } from './Button'
+import { PlateButton } from './PlateButton'
 
 const BUTTON = { x: 640, y: 640, width: 260, height: 58 }
 
@@ -11,7 +11,7 @@ export class OrderView {
   constructor(scene: Phaser.Scene, onMakePerfume: () => void) {
     this.scene = scene
     this.root = scene.add.container(0, 0)
-    this.root.add(new Button(scene, BUTTON.x, BUTTON.y, BUTTON.width, BUTTON.height, 'Make perfume', onMakePerfume))
+    this.root.add(new PlateButton(scene, BUTTON.x, BUTTON.y, { label: 'Make perfume', width: BUTTON.width, height: BUTTON.height, onClick: onMakePerfume }))
   }
 
   setAlpha(alpha: number) {

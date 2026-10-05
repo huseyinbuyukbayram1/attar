@@ -38,20 +38,3 @@ export function addPanel(
   drawPanel(panel, x, y, width, height, radius, fill)
   return panel
 }
-
-// A cream pill with centered dark text, for small always-on labels. The pill has a fixed
-// size so the text can change (e.g. "Day 2/5") without redrawing it.
-export function addPillLabel(
-  scene: Phaser.Scene,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  text: string,
-  fontSize: number,
-): Phaser.GameObjects.Text {
-  addPanel(scene, x, y, width, height, height / 2)
-  return scene.add
-    .text(x, y, text, { fontFamily: FONT, fontSize: `${fontSize}px`, color: TEXT_COLOR, align: 'center' })
-    .setOrigin(0.5)
-}
