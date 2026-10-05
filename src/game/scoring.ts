@@ -52,10 +52,20 @@ export function starsFor(dist: number): Stars {
   return 0
 }
 
-// Points at the single axis that is most off, so the player gets one clear thing to fix.
-// A mix that earns 3 stars is always "exactly it": the hint must never contradict the stars.
+// How the hint changes with the distance (the stars themselves do not depend on these)
+const HINT_NEAR_MISS = 0.2 // from the 3-star line up to here: "So close!", one axis
+const HINT_FAR = 0.4 // from here on: stronger wording
+const HINT_MIN_AXIS_DIFF = 0.05 // in the two-axis hints, an axis that is off by less than this is left out
+
+// Tells the player what to change. A mix that earns 3 stars is always "exactly it": the hint must
+// never contradict the stars. The further off the mix is, the more the hint says:
+//  - near miss (below HINT_NEAR_MISS): the single axis that is most off, "a touch more/less"
+//  - further (below HINT_FAR): the axis that is most too strong AND the axis that is most missing
+//  - far (HINT_FAR or more): the same, with stronger wording
+// An axis that is off by less than HINT_MIN_AXIS_DIFF is not named in the two-axis hints.
 export function hintFor(mix: Scent, target: Scent): string {
-  if (distance(mix, target) < STAR_THRESHOLDS.three) return 'That is exactly it.'
+  const dist = distance(mix, target)
+  if (dist < STAR_THRESHOLDS.three) return 'That is exactly it.'
 
   const a = proportions(mix)
   const b = proportions(target)
@@ -64,16 +74,36 @@ export function hintFor(mix: Scent, target: Scent): string {
   const diffs = AXES.map((axis) => ({ axis, diff: a[axis] - b[axis] })).sort(
     (x, y) => Math.abs(y.diff) - Math.abs(x.diff),
   )
-  let worst = diffs[0]
-  // Two axes about equally off: asking for something that is missing is more useful than
-  // asking for less of something, so prefer the one the mix has too little of
-  const runnerUp = diffs[1]
-  if (worst.diff > 0 && runnerUp.diff < 0 && Math.abs(worst.diff) - Math.abs(runnerUp.diff) <= HINT_TIE_MARGIN) {
-    worst = runnerUp
+
+  // Near miss: one axis. The tie rule is kept here: two axes about equally off, the worst is
+  // "too much" and the runner-up "too little": asking for something that is missing is more
+  // useful than asking for less of something, so prefer the one the mix has too little of.
+  if (dist < HINT_NEAR_MISS) {
+    let worst = diffs[0]
+    const runnerUp = diffs[1]
+    if (worst.diff > 0 && runnerUp.diff < 0 && Math.abs(worst.diff) - Math.abs(runnerUp.diff) <= HINT_TIE_MARGIN) {
+      worst = runnerUp
+    }
+    return worst.diff > 0 ? `So close! Just a touch less ${worst.axis}.` : `So close! Just a touch more ${worst.axis}.`
   }
 
-  if (worst.diff > 0) return `Lovely, but too ${worst.axis}.`
-  return `It needs something ${worst.axis}.`
+  // Further off: the axis with the largest excess and the axis with the largest shortfall. They are
+  // two different axes, so there is nothing to tie-break. Small differences are left out.
+  const far = dist >= HINT_FAR
+  const over = diffs.find((d) => d.diff > 0 && d.diff >= HINT_MIN_AXIS_DIFF) // diffs is sorted, so this is the largest
+  const under = diffs.find((d) => d.diff < 0 && -d.diff >= HINT_MIN_AXIS_DIFF)
+  if (over && under) {
+    return far
+      ? `Hmm, far too ${over.axis}. It really needs something ${under.axis}.`
+      : `Lovely, but too ${over.axis}, and it needs something ${under.axis}.`
+  }
+  if (over) return far ? `Hmm, far too ${over.axis}.` : `Lovely, but too ${over.axis}.`
+  if (under) return far ? `It really needs something ${under.axis}.` : `It needs something ${under.axis}.`
+
+  // Not reachable when the distance is 0.2 or more (some axis is always off by at least 0.05);
+  // kept so a hint is never empty
+  const worst = diffs[0]
+  return worst.diff > 0 ? `Lovely, but too ${worst.axis}.` : `It needs something ${worst.axis}.`
 }
 
 export function scoreMix(drops: string[], order: Order): Score {

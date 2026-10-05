@@ -15,13 +15,13 @@ import { Flask } from './Flask'
 import { liquidColor } from './liquidColor'
 import { FINAL_MIX_ENABLED, playMixAnimation } from './mixAnimation'
 import { Notebook } from './Notebook'
+import { OrderNote } from './OrderNote'
 import { playPourStream, STREAM_REACH_MS } from './pourStream'
 import { addPanel, FONT, TEXT_COLOR } from './theme'
 import { Tooltip } from './Tooltip'
 
 // Layout numbers for the 1280x720 screen. In counter_view the counter's top surface (light
 // wood) spans y 497..617 (COUNTER in counterBand.ts); below that is the dark front face.
-const REMINDER = { x: 640, y: 90, width: 760, height: 64 }
 
 // Two rows of bottles to the right of the flask (the brass scale, alembic and notebook are at x < 375).
 // The front row is shifted by half a spacing, so a label never hides a bottle.
@@ -57,7 +57,6 @@ type Callbacks = {
 export class MixView {
   private root: Phaser.GameObjects.Container
   private state: GameState
-  private reminderText: Phaser.GameObjects.Text
   private flask: Flask
   private bottles: Bottle[] = []
   private scene: Phaser.Scene
@@ -75,23 +74,13 @@ export class MixView {
   private tooltip: Tooltip
   private onSound: (event: SoundEvent) => void
   private notebook: Notebook
+  private note: OrderNote // the order and the latest hint, in the top right
 
   constructor(scene: Phaser.Scene, state: GameState, callbacks: Callbacks) {
     this.state = state
     this.scene = scene
     this.onSound = callbacks.onSound
     this.root = scene.add.container(0, 0)
-
-    this.reminderText = scene.add
-      .text(REMINDER.x, REMINDER.y, '', {
-        fontFamily: FONT,
-        fontSize: '19px',
-        color: TEXT_COLOR,
-        align: 'center',
-        wordWrap: { width: REMINDER.width - 40 },
-      })
-      .setOrigin(0.5)
-    this.root.add([addPanel(scene, REMINDER.x, REMINDER.y, REMINDER.width, REMINDER.height, 24), this.reminderText])
 
     // Added in this order, so the back row is behind the front row, and the flask is above both
     const tooltip = new Tooltip(scene)
@@ -144,7 +133,8 @@ export class MixView {
     // The tooltip goes last so it is drawn above everything, including the flask
     // The notebook comes before the flask: the waste pot of the emptying animation is drawn just below
     // the flask, and it must be in front of the notebook, too
-    this.root.add([this.notebook.book, this.flask, this.slots, this.emptyButton, this.smellButton, this.deliverButton, this.noSmellsNote, tooltip])
+    this.note = new OrderNote(scene)
+    this.root.add([this.note.root, this.notebook.book, this.flask, this.slots, this.emptyButton, this.smellButton, this.deliverButton, this.noSmellsNote, tooltip])
     this.root.setVisible(false)
   }
 
@@ -156,7 +146,7 @@ export class MixView {
     this.bottles.forEach((bottle) => bottle.setEvening(evening))
     this.flask.setEvening(evening)
     this.notebook.setEvening(evening)
-    this.reminderText.setText(`${order.customerName}: ${order.orderText}`)
+    this.note.show(order, MAX_SMELLS - this.state.smellsUsed)
     this.refresh(false)
     this.root.setVisible(true)
   }
@@ -179,9 +169,21 @@ export class MixView {
     return this.lastStirredMix === this.mixSignature()
   }
 
-  // A new customer starts with nothing stirred
+  // The REACT phase gives a hint: the order note on the MIX screen keeps it (display only)
+  setHint(hint: string) {
+    this.note.setHint(hint, this.state.drops) // the mix that was just smelled
+  }
+
+  // The ghosts of an emptied mix go away when the mix is delivered
+  clearGhosts() {
+    this.slots.setGhosts([])
+  }
+
+  // A new customer starts with nothing stirred and no hint on the note
   resetStirred() {
     this.lastStirredMix = null
+    this.note.reset()
+    this.slots.setGhosts([]) // a new customer: no ghosts
   }
 
   private pick(id: string, bottle: Bottle) {
@@ -255,6 +257,8 @@ export class MixView {
     this.tooltip.setLocked(true)
     this.onSound('click')
     // The slots empty when the flask tilts back
+    // The mix that is about to be emptied: it stays in the slots as ghosts (UI only)
+    const emptiedMix = this.state.drops
     this.flask.playEmpty({
       onPour: () => this.onSound('pour'),
       onBack: () => this.slots.fadeOut(() => {}), // the slots empty when the flask tilts back
@@ -263,6 +267,7 @@ export class MixView {
         this.busy = false
         if (!this.active) return
         this.state.clear()
+        this.slots.setGhosts(emptiedMix) // replaces older ghosts
         this.refresh(false)
       },
     })

@@ -303,7 +303,9 @@ export class ShopScene extends Phaser.Scene {
     const { state } = this
     this.sounds.play('smell')
     state.useSmell()
-    this.speech.setText(hintFor(mixScent(state.drops), state.order.target))
+    const hint = hintFor(mixScent(state.drops), state.order.target)
+    this.speech.setText(hint)
+    this.mixView.setHint(hint) // so the counter screen can show it too
     this.reactView.showChoices()
   }
 
@@ -313,6 +315,7 @@ export class ShopScene extends Phaser.Scene {
     const payout = payoutFor(score.stars)
     state.addStars(score.stars)
     state.addMoney(payout)
+    this.mixView.clearGhosts()
     if (payout > 0) this.sounds.play('deliver') // no money, no happy sound
     this.updateHud()
     const stars = '★'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
