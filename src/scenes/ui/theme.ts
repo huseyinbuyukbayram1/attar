@@ -2,6 +2,14 @@ import Phaser from 'phaser'
 
 // Shared look: warm cream panels with dark brown text, so text is readable on any background
 export const FONT = 'Georgia, serif'
+// The logo font (Cinzel Decorative, see index.html). Falls back to the serif if it is not loaded.
+export const LOGO_FONT = "'Cinzel Decorative', Georgia, serif"
+
+// Cinzel Decorative has strong kerning (the space it takes away between letters of some pairs): the two
+// o's of "Choose" end up on top of each other. Phaser draws a text with a letter spacing one letter at a
+// time, without kerning, so any non-zero spacing fixes it. Put this on EVERY text in the logo font:
+// `{ fontFamily: LOGO_FONT, letterSpacing: LOGO_LETTER_SPACING, ... }`.
+export const LOGO_LETTER_SPACING = 0.5
 export const TEXT_COLOR = '#3b2a20'
 export const CREAM = 0xf6e7c1
 export const BORDER = 0x8a5a3c

@@ -3,7 +3,7 @@ import { pauseEffects, resumeEffects, stopPausedEffects } from '../game/audio'
 import { setMusicDuck } from '../game/settings'
 import { PlateButton, PlatePanel } from './ui/PlateButton'
 import { SettingsPanel } from './ui/SettingsPanel'
-import { FONT } from './ui/theme'
+import { FONT, LOGO_FONT, LOGO_LETTER_SPACING } from './ui/theme'
 
 // ---- The pause menu: tuning constants (screen px) ----
 const PANEL = { x: 640, y: 360, width: 440, height: 400 }
@@ -13,7 +13,6 @@ const PAUSE_MUSIC_DUCK = 0.4 // music and ambience are this loud (of their curre
 const ESC_GUARD_MS = 200 // the Esc that opened the menu must not close it again at once
 const LEAVE_FADE_MS = 400 // the fade to black when restarting or going to the main menu
 const INK_CSS = '#3b2412'
-const LOGO_FONT = "'Cinzel Decorative', Georgia, serif"
 const TITLE = { text: 'Paused', size: 40, y: -PANEL.height / 2 + 52 }
 const BUTTONS = { width: 260, height: 54, fontSize: 24, firstY: -70, pitch: 65 }
 const CONFIRM = { textY: -40, textWidth: 340, fontSize: 22, buttonsY: 70, buttonWidth: 170, buttonGap: 100 } // buttonGap: x of each button from the middle
@@ -71,7 +70,7 @@ export class PauseScene extends Phaser.Scene {
     this.root = this.add.container(PANEL.x, PANEL.y, [
       new PlatePanel(this, 0, 0, PANEL.width, PANEL.height),
       this.add.zone(0, 0, PANEL.width, PANEL.height).setInteractive(),
-      this.add.text(0, TITLE.y, TITLE.text, { fontFamily: LOGO_FONT, fontStyle: 'bold', fontSize: `${TITLE.size}px`, color: INK_CSS }).setOrigin(0.5).setResolution(2),
+      this.add.text(0, TITLE.y, TITLE.text, { fontFamily: LOGO_FONT, letterSpacing: LOGO_LETTER_SPACING, fontStyle: 'bold', fontSize: `${TITLE.size}px`, color: INK_CSS }).setOrigin(0.5).setResolution(2),
       this.mainView,
       this.confirmView,
     ])

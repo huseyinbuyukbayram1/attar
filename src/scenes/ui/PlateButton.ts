@@ -12,14 +12,18 @@ const PLATES = {
 export type PlateVariant = keyof typeof PLATES
 
 const LABEL_COLOR = '#3b2412' // dark ink
+const LABEL_COLOR_SELECTED = '#6a5846' // a selected button has a lighter, less contrasty label
 const DEFAULT_FONT_SIZE = 22
 const LABEL_MARGIN_PX = 6 // free space between the label and the ornaments on each side
 const FALLBACK = { fill: 0xf6e7c1, border: 0x8a5a3c } // plain look if a plate picture is missing
 
 // Looks of the four states. A tint can only darken, so "brightened" is full white and the normal
 // plate is a touch darker; the plate picture is multiplied by the tint.
-const TINT = { normal: 0xf0ece4, hover: 0xffffff, pressed: 0xc8c0b4, disabled: 0x8a8a8a }
-const SCALE = { normal: 1, hover: 1.03, pressed: 0.97 }
+// A selected button looks "pressed in": a darker, muted plate, a bit smaller, with a soft inner shadow.
+// It is still clickable and brightens on hover like the others.
+const TINT = { normal: 0xf0ece4, hover: 0xffffff, pressed: 0xc8c0b4, disabled: 0x8a8a8a, selected: 0xd8cbb8 }
+const SCALE = { normal: 1, hover: 1.03, pressed: 0.97, selected: 0.97 }
+const INNER_SHADOW = { color: 0x3b2412, alpha: 0.22, width: 3, inset: 5 } // a dark line just inside the border
 const TWEEN_MS = 80
 const DISABLED_ALPHA = 0.6
 
@@ -51,6 +55,8 @@ export class PlateButton extends Phaser.GameObjects.Container {
   private plate?: Phaser.GameObjects.NineSlice
   private fallback?: Phaser.GameObjects.Rectangle
   private label: Phaser.GameObjects.Text
+  private innerShadow: Phaser.GameObjects.Graphics
+  private selected = false
   private buttonWidth: number
   private fontSize: number
   private cornerPx: number
@@ -73,6 +79,10 @@ export class PlateButton extends Phaser.GameObjects.Container {
       this.fallback = scene.add.rectangle(0, 0, width, height, FALLBACK.fill).setStrokeStyle(2, FALLBACK.border)
       this.add(this.fallback)
     }
+    this.innerShadow = scene.add.graphics()
+    this.innerShadow.lineStyle(INNER_SHADOW.width, INNER_SHADOW.color, INNER_SHADOW.alpha)
+    this.innerShadow.strokeRoundedRect(-width / 2 + INNER_SHADOW.inset, -height / 2 + INNER_SHADOW.inset, width - INNER_SHADOW.inset * 2, height - INNER_SHADOW.inset * 2, 6)
+    this.add(this.innerShadow)
     this.label = scene.add
       .text(0, 0, '', { fontFamily: FONT, fontSize: `${this.fontSize}px`, color: LABEL_COLOR })
       .setOrigin(0.5)
@@ -117,6 +127,12 @@ export class PlateButton extends Phaser.GameObjects.Container {
     return this
   }
 
+  // A selected button (e.g. the last chosen difficulty) looks pressed in, but works as usual
+  setSelected(selected: boolean) {
+    this.selected = selected
+    this.show(this.hovered ? 'hover' : 'normal')
+  }
+
   setEnabled(enabled: boolean) {
     this.enabled = enabled
     this.show('normal')
@@ -124,12 +140,15 @@ export class PlateButton extends Phaser.GameObjects.Container {
 
   // One place for the looks of every state; disabled wins over everything
   private show(state: 'normal' | 'hover' | 'pressed') {
-    const look = !this.enabled ? 'disabled' : state
+    // Selected only shows while the mouse is not on the button (hover and press look the same as always)
+    const look = !this.enabled ? 'disabled' : state === 'normal' && this.selected ? 'selected' : state
     const tint = TINT[look]
+    this.label.setColor(look === 'selected' ? LABEL_COLOR_SELECTED : LABEL_COLOR)
+    this.innerShadow.setVisible(look === 'selected')
     this.plate?.setTint(tint)
     this.fallback?.setFillStyle(this.enabled ? FALLBACK.fill : 0xb8b0a0)
     this.setAlpha(this.enabled ? 1 : DISABLED_ALPHA)
-    const scale = look === 'hover' ? SCALE.hover : look === 'pressed' ? SCALE.pressed : SCALE.normal
+    const scale = look === 'hover' ? SCALE.hover : look === 'pressed' ? SCALE.pressed : look === 'selected' ? SCALE.selected : SCALE.normal
     this.scene.tweens.killTweensOf(this)
     this.scene.tweens.add({ targets: this, scale, duration: TWEEN_MS })
   }

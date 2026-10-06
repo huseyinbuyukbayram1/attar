@@ -3,7 +3,7 @@ import { playEffect, playMusic } from '../game/audio'
 import { PlateButton } from './ui/PlateButton'
 import { DifficultyPanel } from './ui/DifficultyPanel'
 import { SettingsPanel } from './ui/SettingsPanel'
-import { addLabelPlate, TEXT_COLOR } from './ui/theme'
+import { addLabelPlate, LOGO_FONT, LOGO_LETTER_SPACING, TEXT_COLOR } from './ui/theme'
 
 // ---- Title screen: tuning constants (positions in 1280x720 canvas px) ----
 const BACKGROUND_KEY = 'title_exterior'
@@ -28,7 +28,7 @@ const signRestY = (boardWidth: number) => -SIGN_PICTURE.firstRow * signScale(boa
 const boardCenterY = (boardWidth: number) => SIGN_PICTURE.boardCenterY * signScale(boardWidth) // from the sign's origin
 
 const LOGO = {
-  fontFamily: "'Cinzel Decorative', Georgia, serif", // falls back to the game's serif if the font is not there
+  fontFamily: LOGO_FONT, // falls back to the game's serif if the font is not there
   text: 'Attar',
   color: '#f3dfb0', // warm cream / gold
   stroke: '#3b2412', // dark brown
@@ -257,6 +257,7 @@ export class TitleScene extends Phaser.Scene {
     const logo = this.add
       .text(0, centerY + (withTagline ? LOGO.offsetY * (boardWidth / SIGN_REFERENCE_WIDTH) : 0), LOGO.text, {
         fontFamily: LOGO.fontFamily,
+        letterSpacing: LOGO_LETTER_SPACING,
         fontStyle: 'bold',
         fontSize: '100px',
         color: LOGO.color,

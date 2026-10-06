@@ -3,7 +3,7 @@ import { playEffect, toggleMute } from '../../game/audio'
 import { getSettings, onSettingsChange, updateSettings } from '../../game/settings'
 import { PlateButton, PlatePanel } from './PlateButton'
 import { Slider } from './Slider'
-import { FONT } from './theme'
+import { FONT, LOGO_FONT, LOGO_LETTER_SPACING } from './theme'
 
 // ---- The settings panel: tuning constants (screen px) ----
 // Reusable: create it in any scene with `new SettingsPanel(scene)` and call open().
@@ -14,7 +14,6 @@ const FADE_MS = 180
 const SCALE_FROM = 0.95 // the panel grows from this to 1 while it fades in
 
 const INK_CSS = '#3b2412'
-const LOGO_FONT = "'Cinzel Decorative', Georgia, serif" // the title; falls back to the serif if the font is not loaded
 const FONT_SIZE = { title: 38, label: 18, percent: 16, header: 18, controlKey: 15, controlText: 15 }
 const TITLE_Y = -PANEL.height / 2 + 52 // all y values below are inside the panel, from its center
 
@@ -149,7 +148,7 @@ export class SettingsPanel {
     items.push(scene.add.zone(0, 0, PANEL.width, PANEL.height).setInteractive())
     items.push(
       scene.add
-        .text(0, TITLE_Y, 'Settings', { fontFamily: LOGO_FONT, fontStyle: 'bold', fontSize: `${FONT_SIZE.title}px`, color: INK_CSS })
+        .text(0, TITLE_Y, 'Settings', { fontFamily: LOGO_FONT, letterSpacing: LOGO_LETTER_SPACING, fontStyle: 'bold', fontSize: `${FONT_SIZE.title}px`, color: INK_CSS })
         .setOrigin(0.5)
         .setResolution(2),
     )
