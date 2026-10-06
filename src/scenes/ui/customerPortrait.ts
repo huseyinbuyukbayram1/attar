@@ -22,6 +22,7 @@ const FOCUS: Record<string, { x: number; y: number; zoom: number }> = {
   lobby: { x: 0.46, y: 0.26, zoom: 0.92 },
   school: { x: 0.42, y: 0.27, zoom: 0.78 },
   master: { x: 0.54, y: 0.3, zoom: 0.7 },
+  practice: { x: 0.48, y: 0.27, zoom: 0.58 },
 }
 
 // The texture key of the round portrait of the customer `id`, made on first use; undefined if the

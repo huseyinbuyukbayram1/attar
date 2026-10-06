@@ -23,6 +23,11 @@ export const GREAT_WIN_PAGE =
 export const LOSE_PAGE =
   "On the fifth evening, you count the coins twice: {earned}. It isn't enough. The lender is kind, but a debt is a debt. You lock the door, keep the notebook, and carry Misk home. You know the scents now. Maybe one day, the door will open again."
 
+// The practice customer of the tutorial (Sabiha, the neighbour)
+export const PRACTICE_INTRO = 'Before you open, let me be your first customer. Your grandfather always made me something for my morning coffee.'
+export const PRACTICE_GOODBYE = "No, no, keep it. Go on, open your shop!"
+export const DAY_ONE_CARD = 'The shop is open — Day 1' // the title card after the practice
+
 // Puts the debt and the money into a story text
 export function fillStory(text: string, debt: number, earned = 0): string {
   return text.replace('{debt}', formatMoney(debt)).replace('{earned}', formatMoney(earned))

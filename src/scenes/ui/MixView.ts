@@ -13,6 +13,7 @@ import { Flask } from './Flask'
 import { liquidColor } from './liquidColor'
 import { FINAL_MIX_ENABLED, playMixAnimation } from './mixAnimation'
 import { Notebook } from './Notebook'
+import type { TutorialEvent } from './Tutorial'
 import { PlateButton } from './PlateButton'
 import { OrderNote } from './OrderNote'
 import { playPourStream, STREAM_REACH_MS } from './pourStream'
@@ -49,6 +50,7 @@ type Callbacks = {
   onDeliver: () => void
   onSound: (event: SoundEvent) => void
   isSceneBusy: () => boolean // true during a phase change or other sequence of the scene
+  onTutorial: (event: TutorialEvent) => void // tells the tutorial what the player did
 }
 
 // Phase MIX: the counter view. Bottles to pick from, the flask with its six slots, and the
@@ -72,6 +74,7 @@ export class MixView {
   private busy = false // true while a pour or the mix animation plays: input is ignored
   private tooltip: Tooltip
   private onSound: (event: SoundEvent) => void
+  private onTutorial: (event: TutorialEvent) => void
   private notebook: Notebook
   private note: OrderNote // the order and the latest hint, in the top right
 
@@ -79,6 +82,7 @@ export class MixView {
     this.state = state
     this.scene = scene
     this.onSound = callbacks.onSound
+    this.onTutorial = callbacks.onTutorial
     this.root = scene.add.container(0, 0)
 
     // Added in this order, so the back row is behind the front row, and the flask is above both
@@ -111,7 +115,10 @@ export class MixView {
       width: SMELL.width,
       height: SMELL.height,
       onClick: () => {
-        if (this.active && !this.busy && this.state.canSmell()) this.stir(callbacks.onSmell)
+        if (this.active && !this.busy && this.state.canSmell()) {
+          callbacks.onTutorial({ type: 'smell' })
+          this.stir(callbacks.onSmell)
+        }
       },
     })
     this.deliverButton = new PlateButton(scene, DELIVER.x, DELIVER.y, {
@@ -128,7 +135,11 @@ export class MixView {
     // The notebook only opens while this view is idle: no pour, no stir, no phase change
     this.notebook = new Notebook(scene, tooltip, {
       canOpen: () => this.active && !this.busy && !callbacks.isSceneBusy(),
-      onOpen: () => this.tooltip.hide(),
+      onOpen: () => {
+        this.tooltip.hide()
+        callbacks.onTutorial({ type: 'notebook', open: true })
+      },
+      onClose: () => callbacks.onTutorial({ type: 'notebook', open: false }),
       onSound: (event) => this.onSound(event),
     })
     const noteText = scene.add
@@ -179,6 +190,29 @@ export class MixView {
   // True if the mix is the same as the last one that was stirred
   isStirred(): boolean {
     return this.lastStirredMix === this.mixSignature()
+  }
+
+  // Where things are on the screen, for the tutorial to light them up
+  notebookBounds(): Phaser.Geom.Rectangle {
+    return this.notebook.bounds()
+  }
+
+  // One ingredient's bottle (the tutorial lights up only the bottle it asks for)
+  bottleBounds(id: string): Phaser.Geom.Rectangle {
+    const index = INGREDIENTS.findIndex((ingredient) => ingredient.id === id)
+    return this.bottles[index].bounds()
+  }
+
+  emptyBounds(): Phaser.Geom.Rectangle {
+    return this.emptyButton.bounds()
+  }
+
+  smellBounds(): Phaser.Geom.Rectangle {
+    return this.smellButton.bounds()
+  }
+
+  noteBounds(): Phaser.Geom.Rectangle {
+    return this.note.bounds()
   }
 
   // True while the Master's Notebook is open (the pause key must leave Esc to it)
@@ -247,6 +281,7 @@ export class MixView {
           bottle.endPour()
           this.tooltip.setLocked(false)
           this.busy = false
+          this.onTutorial({ type: 'drops', ids: this.state.drops }) // the pour is over
         })
       })
     })

@@ -147,6 +147,12 @@ export class Bottle extends Phaser.GameObjects.Container {
     })
   }
 
+  // Where the bottle and its name label stand on the screen (the tutorial lights them up)
+  bounds(): Phaser.Geom.Rectangle {
+    const { x, bottom, height } = this.layout
+    return new Phaser.Geom.Rectangle(x - height * 0.4, bottom - height - 6, height * 0.8, height + 6 + 36)
+  }
+
   // Evening: the ingredient color is multiplied with a warm tint. Morning: the plain color.
   setEvening(evening: boolean) {
     this.applyTint(evening ? multiplyColor(this.color, EVENING_TINT) : this.color)

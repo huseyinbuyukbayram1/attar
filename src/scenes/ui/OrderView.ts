@@ -10,11 +10,17 @@ const BUTTON = { x: 1280 - 32 - BUTTON_SIZE.width / 2, y: 720 - 24 - BUTTON_SIZE
 export class OrderView {
   private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
+  private button: PlateButton
 
   constructor(scene: Phaser.Scene, onMakePerfume: () => void) {
     this.scene = scene
     this.root = scene.add.container(0, 0)
-    this.root.add(new PlateButton(scene, BUTTON.x, BUTTON.y, { label: 'Make perfume', width: BUTTON.width, height: BUTTON.height, onClick: onMakePerfume }))
+    this.button = new PlateButton(scene, BUTTON.x, BUTTON.y, { label: 'Make perfume', width: BUTTON.width, height: BUTTON.height, onClick: onMakePerfume })
+    this.root.add(this.button)
+  }
+
+  buttonBounds(): Phaser.Geom.Rectangle {
+    return this.button.bounds()
   }
 
   setAlpha(alpha: number) {

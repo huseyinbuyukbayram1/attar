@@ -86,6 +86,7 @@ const AXIS_COLORS: Record<Axis, number> = {
 type Callbacks = {
   canOpen: () => boolean // true only while the MIX phase is idle
   onOpen: () => void // lets the MIX view hide things that must not stay (the tooltip)
+  onClose: () => void // the panel has been closed (the tutorial waits for it)
   onSound: (event: SoundEvent) => void
 }
 
@@ -122,6 +123,7 @@ export class Notebook {
   readonly book: Phaser.GameObjects.Container
   private bookArt: Phaser.GameObjects.Container // the part that lifts on hover
   private bookSprite?: Phaser.GameObjects.Image // the picture, tinted in the evening
+  private bookBounds = new Phaser.Geom.Rectangle(NOTEBOOK_X - 75, BOOK.base - 90, 150, 100) // where the book is on the screen
   private tooltip: Tooltip
   private layer: Phaser.GameObjects.Container
   private blocker: Phaser.GameObjects.Zone
@@ -171,10 +173,17 @@ export class Notebook {
     return this.open
   }
 
+  // Where the closed book is on the screen (the tutorial lights it up)
+  bounds(): Phaser.Geom.Rectangle {
+    return this.bookBounds
+  }
+
   // Closes at once, with no fade. Used when the phase changes.
   closeNow() {
+    const wasOpen = this.open
     this.scene.tweens.killTweensOf(this.fade)
     this.hideLayer()
+    if (wasOpen) this.callbacks.onClose()
   }
 
   // The fallback book, drawn with shapes: leather cover, gold edge, cream label, ribbon
@@ -265,6 +274,7 @@ export class Notebook {
       scene.add.ellipse(0, s.y, bodyWidth * s.share, s.height, NOTEBOOK_SHADOW_COLOR).setAlpha(s.alpha),
     )
     const book = scene.add.container(NOTEBOOK_X, BOOK.base, [...shadows, art, hit])
+    this.bookBounds = new Phaser.Geom.Rectangle(NOTEBOOK_X - bodyWidth / 2, BOOK.base - bodyHeight, bodyWidth, bodyHeight)
 
     const hover = (lifted: boolean) => {
       if (lifted && !this.callbacks.canOpen()) return // no hover effects during a pour, mix or emptying
@@ -315,6 +325,7 @@ export class Notebook {
     this.open = false
     this.blocker.disableInteractive() // stop blocking right away, the fade is only a picture
     this.fadeTo(0, () => this.hideLayer())
+    this.callbacks.onClose()
   }
 
   private hideLayer() {

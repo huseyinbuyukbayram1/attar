@@ -1,4 +1,4 @@
-import { ORDERS } from '../data/customers'
+import { ORDERS, PRACTICE_ORDER } from '../data/customers'
 import type { Order } from '../data/customers'
 import { getDifficulty } from './difficulty'
 import { MAX_DROPS, MIN_DROPS } from './scoring'
@@ -17,6 +17,9 @@ export class GameState {
   readonly greatWin = getDifficulty().greatWin
   readonly maxSmells = getDifficulty().smells
   orderIndex = 0
+  // True while the practice customer of the tutorial is at the counter: she is not one of the ORDERS, no
+  // day, no money, no stars. orderIndex stays 0 so that the real game starts at Day 1 when she is done.
+  practice = false
   totalStars = 0
   money = 0 // the main score: how much of the debt has been earned back
   // Fixed slots, not a list: emptying one slot must not move the others.
@@ -25,7 +28,7 @@ export class GameState {
   smellsUsed = 0
 
   get order(): Order {
-    return ORDERS[this.orderIndex]
+    return this.practice ? PRACTICE_ORDER : ORDERS[this.orderIndex]
   }
 
   get day(): number {
@@ -83,6 +86,17 @@ export class GameState {
 
   addMoney(amount: number) {
     this.money += amount
+  }
+
+  startPractice() {
+    this.practice = true
+  }
+
+  // The practice is over: the first real customer comes next, with an empty vial and fresh smells
+  endPractice() {
+    this.practice = false
+    this.clear()
+    this.smellsUsed = 0
   }
 
   // Moves to the next customer with an empty vial and fresh smells

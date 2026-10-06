@@ -17,4 +17,8 @@ export const CUSTOMER_LAYOUT: Record<string, CustomerLayout> = {
   lobby: { scale: 0.95, offsetY: -5 },
   school: { scale: 1.16, offsetY: 45 },
   master: { scale: 1.16, offsetY: 45 },
+  // Sabiha (the tutorial customer): her picture is wider and her head is bigger in it (head about 290 px high
+  // against about 170 px for the others), so she is drawn smaller to get the same head size. Then her body ends
+  // above the counter, so the picture is lowered until its bottom edge is at the counter line (y 578).
+  practice: { scale: 0.62, offsetY: -62 },
 }

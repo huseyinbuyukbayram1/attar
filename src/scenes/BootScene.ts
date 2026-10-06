@@ -37,6 +37,8 @@ export class BootScene extends Phaser.Scene {
     // Title screen: the shop exterior (1920x1080) and the hanging sign (700x570)
     this.load.image('title_exterior', 'assets/title/title_exterior.jpg')
     this.load.image('title_sign', 'assets/title/title_sign.png')
+    // Sabiha, the practice customer of the tutorial (she is not one of the ORDERS, so she is loaded here)
+    this.load.image('customer_practice', 'assets/characters/customer_practice.png')
     // Painted button plates (long and short for buttons and labels, round for future icon buttons)
     this.load.image('button_long', 'assets/ui/button_long.png')
     this.load.image('button_short', 'assets/ui/button_short.png')

@@ -1,3 +1,4 @@
+import { AXES, INGREDIENTS } from './ingredients'
 import type { Scent } from './ingredients'
 
 export type Order = {
@@ -75,3 +76,22 @@ export const ORDERS: Order[] = [
     target: t({ woody: 3, spicy: 2, sweet: 2, floral: 1 }),
   },
 ]
+
+// The practice customer of the tutorial (src/scenes/ui/Tutorial.ts): not one of the ORDERS, not counted as
+// a day or a customer, no money. Her target is exactly the scent of Neroli x2 + Vanilla x2, computed from
+// the ingredient data. Neroli x2 + Vanilla x1 is a near miss (2 stars, "a touch more sweet"): the tutorial
+// has the player fix it with one more drop of Vanilla.
+const sumOf = (ids: string[]): Scent => {
+  const sum = t({})
+  for (const id of ids) {
+    const ingredient = INGREDIENTS.find((i) => i.id === id)
+    if (ingredient) for (const axis of AXES) sum[axis] += ingredient.scent[axis]
+  }
+  return sum
+}
+export const PRACTICE_ORDER: Order = {
+  id: 'practice',
+  customerName: 'Sabiha',
+  orderText: 'Something sweet and soft, for my morning coffee.',
+  target: sumOf(['neroli', 'neroli', 'vanilla', 'vanilla']),
+}

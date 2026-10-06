@@ -29,11 +29,17 @@ export class OrderNote {
   private smellsLeft = 0
   private hint: string | null = null
   private smelled: string | null = null // the mix the customer smelled, as text: "Oud, Rose ×2, Vanilla"
+  private cardBounds = new Phaser.Geom.Rectangle(NOTE.x - NOTE.width / 2, NOTE.y, NOTE.width, 0)
   private hintIsNew = false // set when a hint arrives, used (and cleared) the next time the note is shown
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
     this.root = scene.add.container(0, 0)
+  }
+
+  // Where the card is on the screen (the tutorial lights it up)
+  bounds(): Phaser.Geom.Rectangle {
+    return this.cardBounds
   }
 
   // A new hint arrived (in the REACT phase) for the mix `drops` that was smelled; the hint will
@@ -130,6 +136,7 @@ export class OrderNote {
     // The card itself, sized to what was written, drawn first (behind everything)
     const height = y + NOTE.padding.y - NOTE.y
     const card = new PlatePanel(scene, NOTE.x, NOTE.y + height / 2, NOTE.width, height)
+    this.cardBounds = new Phaser.Geom.Rectangle(NOTE.x - NOTE.width / 2, NOTE.y, NOTE.width, height)
     this.root.add([card, ...(flash ? [flash] : []), ...texts])
     this.addPortrait(this.order.id) // last: drawn above the card
 

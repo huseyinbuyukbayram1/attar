@@ -62,6 +62,7 @@ export class PlateButton extends Phaser.GameObjects.Container {
   private selected = false
   private accent?: number
   private buttonWidth: number
+  private buttonHeight: number
   private fontSize: number
   private cornerPx: number
   private enabled = true
@@ -72,6 +73,7 @@ export class PlateButton extends Phaser.GameObjects.Container {
     scene.add.existing(this)
     const { width, height, onClick } = options
     this.buttonWidth = width
+    this.buttonHeight = height
     this.fontSize = options.fontSize ?? DEFAULT_FONT_SIZE
     this.accent = options.accent
 
@@ -111,6 +113,11 @@ export class PlateButton extends Phaser.GameObjects.Container {
     })
     hit.on('pointerup', () => this.show(this.hovered ? 'hover' : 'normal'))
     this.show('normal')
+  }
+
+  // Where the button is on the screen (the tutorial lights it up)
+  bounds(): Phaser.Geom.Rectangle {
+    return new Phaser.Geom.Rectangle(this.x - this.buttonWidth / 2, this.y - this.buttonHeight / 2, this.buttonWidth, this.buttonHeight)
   }
 
   // The label is made smaller if it would not fit between the corners

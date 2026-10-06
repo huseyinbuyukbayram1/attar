@@ -1,9 +1,11 @@
 import Phaser from 'phaser'
 import { ORDERS } from '../data/customers'
+import { DAY_ONE_CARD, PRACTICE_GOODBYE, PRACTICE_INTRO } from '../game/story'
 import { SoundManager } from '../game/audio'
 import { GameState } from '../game/gameState'
 import type { TimeOfDay } from '../game/gameState'
 import { DEV_KEYS, devEndingMoney } from '../game/dev'
+import { shouldShowTutorial } from '../game/tutorial'
 import { deliveryFor, formatMoney } from '../game/economy'
 import type { Delivery } from '../game/economy'
 import { hintFor, mixScent, scoreMix } from '../game/scoring'
@@ -20,6 +22,7 @@ import { FINAL_MIX_ENABLED } from './ui/mixAnimation'
 import { MixView } from './ui/MixView'
 import { OrderView } from './ui/OrderView'
 import { ReactView } from './ui/ReactView'
+import { Tutorial } from './ui/Tutorial'
 import { SpeechBox } from './ui/SpeechBox'
 import { addPlateLabel } from './ui/PlateButton'
 
@@ -29,6 +32,7 @@ const PAYMENT_COUNT_MS = 400 // each money line (payment, tip) counts up from 0 
 const PAUSE_MS = 300 // a beat of empty shop before the next customer walks in
 const SPEECH_FADE_MS = 250 // the speech box fades in once the customer has arrived
 const BUTTON_FADE_MS = 250 // then the "Make perfume" button
+const PRACTICE_FADE_MS = 500 // the shop fades in from dark when the practice starts, and out when it is skipped
 const COUNTER_TOP_Y = 578 // in canvas pixels: the counter's top edge; everything from here down is drawn in front of the customer
 // TEMP: remove before release (also the marked code in create() and showCustomerAtOnce())
 const DEV_SKIP_KEYS = DEV_KEYS // N = next customer, B = previous (no scoring), G = contact sheet, E = evening in it
@@ -91,6 +95,7 @@ export class ShopScene extends Phaser.Scene {
   private fade!: Phaser.GameObjects.Rectangle
   private phase: Phase = 'order'
   private pausing = false // the pause menu is open (or opening)
+  private tutorial?: Tutorial // the practice customer's tutorial, if it is to be shown
   private payTween?: Phaser.Tweens.Tween // the counting of the payment lines
   private finishPayment: () => void = () => {} // shows the final lines and the HUD at once (when Next is pressed early)
   private leavingToEnding = false
@@ -103,6 +108,9 @@ export class ShopScene extends Phaser.Scene {
 
   create() {
     this.state = new GameState()
+    // The tutorial is a practice customer before Day 1 (see game/tutorial.ts for when it runs)
+    const practice = shouldShowTutorial()
+    if (practice) this.state.startPractice()
     this.busy = false
     this.pausing = false
     this.leavingToEnding = false
@@ -133,7 +141,10 @@ export class ShopScene extends Phaser.Scene {
 
     this.speech = new SpeechBox(this)
     this.orderView = new OrderView(this, () => {
-      if (!this.busy) this.sounds.play('click')
+      if (!this.busy) {
+        this.sounds.play('click')
+        this.tutorial?.notify({ type: 'makePerfume' })
+      }
       this.goTo('mix')
     })
     // Esc pauses the game. This handler is added BEFORE the views (the notebook has its own Esc
@@ -153,16 +164,36 @@ export class ShopScene extends Phaser.Scene {
       // Out of smells: deliver straight from the counter, into the same result view
       onDeliver: () => this.goTo('react', () => this.deliver()),
       onSound: (event) => this.sounds.play(event),
-      isSceneBusy: () => this.busy,
+      isSceneBusy: () => this.busy || (this.tutorial?.blocksNotebook() ?? false), // the tutorial lets the notebook open only in its notebook step
+      onTutorial: (event) => this.tutorial?.notify(event),
     })
     this.reactView = new ReactView(this, {
       onAdjust: () => {
-        if (!this.busy) this.sounds.play('click')
+        if (!this.busy) {
+          this.sounds.play('click')
+          this.tutorial?.notify({ type: 'adjust' })
+        }
         this.goTo('mix')
       },
-      onDeliver: () => this.deliverFromReact(),
+      onDeliver: () => {
+        if (!this.busy) this.tutorial?.notify({ type: 'deliver' })
+        this.deliverFromReact()
+      },
       onNext: () => this.next(),
     })
+
+    // It asks the views where things are
+    this.tutorial = practice
+      ? new Tutorial(this, {
+          speechBubble: () => this.speech.bounds(),
+          makePerfume: () => this.orderView.buttonBounds(),
+          notebook: () => this.mixView.notebookBounds(),
+          bottle: (id) => this.mixView.bottleBounds(id),
+          smellButton: () => this.mixView.smellBounds(),
+          adjustButton: () => this.reactView.adjustBounds(),
+          deliverButton: () => this.reactView.deliverBounds(),
+        }, () => this.skipPractice())
+      : undefined
 
     this.fade = this.add
       .rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, FADE_COLOR)
@@ -179,7 +210,8 @@ export class ShopScene extends Phaser.Scene {
     // TEMP: remove before release
     if (DEV_SKIP_KEYS) this.addDevKeys()
 
-    this.beginCustomer(true)
+    if (practice) this.beginPractice()
+    else this.beginCustomer(true)
   }
 
   // The state decides the time of day; the overlay plays the 1500 ms crossfade, or jumps when
@@ -190,19 +222,60 @@ export class ShopScene extends Phaser.Scene {
     this.sounds.setTime(time, instant)
   }
 
+  // The practice customer: no "Day" card. The shop fades in from dark, Sabiha walks in and greets
+  // the player, then says what she wants and the tutorial starts.
+  private beginPractice() {
+    this.busy = true
+    this.fade.setAlpha(1)
+    this.tweens.add({ targets: this.fade, alpha: 0, duration: PRACTICE_FADE_MS })
+    this.prepareCustomer(true)
+    this.speech.setText(PRACTICE_INTRO)
+    this.enterCustomer()
+  }
+
+  // Types Sabiha's greeting and waits for the player: a click or Space finishes the typing first, the next one calls onNext
+  private waitForGreeting(onNext: () => void) {
+    const { width, height } = this.scale
+    const click = this.add.zone(width / 2, height / 2, width, height).setInteractive().setDepth(FADE_DEPTH - 1) // swallows clicks, below the fade
+    const keyboard = this.input.keyboard
+    const advance = () => {
+      if (this.speech.isTyping()) {
+        this.speech.finishTyping()
+        return
+      }
+      click.destroy()
+      keyboard?.off('keydown-SPACE', advance)
+      onNext()
+    }
+    click.on('pointerdown', advance)
+    keyboard?.on('keydown-SPACE', advance)
+    this.events.once('shutdown', () => keyboard?.off('keydown-SPACE', advance))
+    this.speech.typeText(PRACTICE_INTRO, () => {})
+  }
+
+  // "Skip tutorial": straight to Day 1. The tutorial has saved its flag, so restarting the scene starts the real game.
+  private skipPractice() {
+    this.busy = true
+    this.tweens.add({ targets: this.fade, alpha: 1, duration: PRACTICE_FADE_MS, onComplete: () => this.scene.restart() })
+  }
+
   // Brings in the customer now in the state, as one sequence with clicks blocked until it ends.
   // The evening crossfade and a customer's entrance never overlap: the shop changes while it is
   // empty, then a pause, then the customer walks in, then the speech box, then the button.
   //  - first customer of a day: "Day X" card, the shop switches to morning under it
   //  - second customer: the shop crossfades to evening
-  private beginCustomer(firstOfGame = false) {
+  private beginCustomer(firstOfGame = false, cardTitle?: string) {
     this.busy = true
     if (this.state.customerOfDay === 1) {
       this.dayCard.show(
         this.state.day,
         () => this.prepareCustomer(true),
-        () => this.time.delayedCall(PAUSE_MS, () => this.enterCustomer()),
+        () => {
+          this.tutorial?.showToast() // after the practice: the last tip (nothing for a game without the tutorial)
+          this.time.delayedCall(PAUSE_MS, () => this.enterCustomer())
+        },
         firstOfGame,
+        cardTitle,
       )
     } else {
       this.prepareCustomer(false)
@@ -232,12 +305,23 @@ export class ShopScene extends Phaser.Scene {
 
   // The customer walks in; when they have arrived the speech box fades in, then the button
   private enterCustomer() {
+    const showButton = () =>
+      this.orderView.fadeIn(BUTTON_FADE_MS, () => {
+        this.busy = false
+        this.tutorial?.sync('order') // the practice customer is in: the tutorial can start
+      })
     this.customer.show(this.state.order, () =>
-      this.speech.fadeIn(SPEECH_FADE_MS, () =>
-        this.orderView.fadeIn(BUTTON_FADE_MS, () => {
-          this.busy = false
-        }),
-      ),
+      this.speech.fadeIn(SPEECH_FADE_MS, () => {
+        if (!this.state.practice) {
+          showButton()
+          return
+        }
+        // Sabiha greets first, typed out like the story; a click or Space (no timer) moves on to her order
+        this.waitForGreeting(() => {
+          this.speech.setText(this.state.order.orderText)
+          showButton()
+        })
+      }),
     )
   }
 
@@ -254,8 +338,10 @@ export class ShopScene extends Phaser.Scene {
   private goTo(phase: Phase, onSwitch?: () => void) {
     if (this.busy) return
     this.busy = true
+    this.tutorial?.suspend() // the tutorial waits out the fade
     this.fadeSwitch(phase, onSwitch, () => {
       this.busy = false
+      this.tutorial?.sync(phase)
     })
   }
 
@@ -331,6 +417,14 @@ export class ShopScene extends Phaser.Scene {
   private deliver() {
     const { state } = this
     const score = scoreMix(state.drops, state.order)
+    if (state.practice) {
+      // The practice customer pays nothing and counts for nothing: no money, no stars, no tip
+      this.mixView.clearGhosts()
+      this.sounds.play('deliver')
+      this.speech.setText(`${'★'.repeat(score.stars)}${'☆'.repeat(3 - score.stars)}\n${PRACTICE_GOODBYE}`)
+      this.reactView.showNext('Open the shop')
+      return
+    }
     const delivery = deliveryFor(score.stars)
     state.addStars(score.stars)
     state.addMoney(delivery.payment + delivery.tip)
@@ -338,7 +432,7 @@ export class ShopScene extends Phaser.Scene {
     if (delivery.payment + delivery.tip > 0) this.sounds.play('deliver') // no money, no happy sound
     const stars = '★'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
     this.showPayment(`${stars}\n${REACTIONS[score.stars]}`, delivery)
-    this.reactView.showNext(state.isLastOrder)
+    this.reactView.showNext(state.isLastOrder ? 'See results' : 'Next customer')
   }
 
   // The result text: the stars and the reaction, then the money as separate lines that count up one
@@ -401,6 +495,11 @@ export class ShopScene extends Phaser.Scene {
     this.reactView.hideButtons()
     this.speech.setVisible(false) // the result text goes away as the customer leaves
     this.customer.leave(() => {
+      if (this.state.practice) {
+        this.state.endPractice() // the first real customer is next, at Day 1
+        this.beginCustomer(false, DAY_ONE_CARD)
+        return
+      }
       if (this.state.isLastOrder) {
         this.leavingToEnding = true
         this.scene.start('EndingScene', { money: this.state.money })
@@ -457,7 +556,7 @@ export class ShopScene extends Phaser.Scene {
       eveningCustomerTint: EVENING_CUSTOMER_TINT,
     })
     const skip = (step: number) => {
-      if (this.phase !== 'order' || this.busy || this.sheet?.isOpen) return
+      if (this.phase !== 'order' || this.busy || this.sheet?.isOpen || this.state.practice) return
       const { state } = this
       state.orderIndex = (state.orderIndex + step + ORDERS.length) % ORDERS.length
       state.clear()

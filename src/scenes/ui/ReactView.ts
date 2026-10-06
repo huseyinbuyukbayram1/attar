@@ -33,6 +33,14 @@ export class ReactView {
     this.root.add([this.adjustButton, this.deliverButton, this.nextButton])
   }
 
+  adjustBounds(): Phaser.Geom.Rectangle {
+    return this.adjustButton.bounds()
+  }
+
+  deliverBounds(): Phaser.Geom.Rectangle {
+    return this.deliverButton.bounds()
+  }
+
   // Adjusting is unlimited (only smelling is limited), so both buttons are always there
   showChoices() {
     this.adjustButton.setVisible(true)
@@ -40,10 +48,11 @@ export class ReactView {
     this.nextButton.setVisible(false)
   }
 
-  showNext(isLastCustomer: boolean) {
+  // `label` is what the button says; the practice customer's "Open the shop" is one of them
+  showNext(label: string) {
     this.adjustButton.setVisible(false)
     this.deliverButton.setVisible(false)
-    this.nextButton.setLabel(isLastCustomer ? 'See results' : 'Next customer')
+    this.nextButton.setLabel(label)
     this.nextButton.setVisible(true)
   }
 

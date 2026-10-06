@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { playEffect, toggleMute } from '../../game/audio'
 import { getSettings, onSettingsChange, updateSettings } from '../../game/settings'
+import { resetTutorial } from '../../game/tutorial'
 import { PlateButton, PlatePanel } from './PlateButton'
 import { Slider } from './Slider'
 import { FONT, LOGO_FONT, LOGO_LETTER_SPACING } from './theme'
@@ -45,6 +46,9 @@ const CONTROLS = {
     ['M', 'Mute or unmute the sound'],
   ],
 }
+// "Replay tutorial": a small button on the Controls header row; after a click a note says when it runs
+const REPLAY = { x: 195, y: 36, width: 170, height: 34, fontSize: 17 }
+const REPLAY_NOTE = { x: -300, y: 190, width: 200, fontSize: 13, text: 'The tutorial runs on your next new game.' }
 const CLOSE_BUTTON = { y: PANEL.height / 2 - 40, width: 180, height: 46, fontSize: 20 }
 
 // A panel with sliders for master, music & ambience and effects volume, a mute box, a list of the
@@ -189,6 +193,26 @@ export class SettingsPanel {
       const y = CONTROLS.firstY + i * CONTROLS.pitch
       items.push(text(CONTROLS.keyX, y, key, FONT_SIZE.controlKey, 0, true), text(CONTROLS.textX, y, what, FONT_SIZE.controlText))
     })
+
+    // Replay tutorial: resets the "seen" flag (the next new game shows it) and says so
+    const note = scene.add
+      .text(REPLAY_NOTE.x, REPLAY_NOTE.y, REPLAY_NOTE.text, { fontFamily: FONT, fontSize: `${REPLAY_NOTE.fontSize}px`, color: INK_CSS, wordWrap: { width: REPLAY_NOTE.width } })
+      .setOrigin(0, 0.5)
+      .setResolution(2)
+      .setVisible(false)
+    items.push(
+      note,
+      new PlateButton(scene, REPLAY.x, REPLAY.y, {
+        label: 'Replay tutorial',
+        width: REPLAY.width,
+        height: REPLAY.height,
+        fontSize: REPLAY.fontSize,
+        onClick: () => {
+          resetTutorial()
+          note.setVisible(true)
+        },
+      }),
+    )
 
     items.push(
       new PlateButton(scene, 0, CLOSE_BUTTON.y, {
