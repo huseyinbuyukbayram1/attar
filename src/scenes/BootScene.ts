@@ -1,6 +1,8 @@
 import Phaser from 'phaser'
 import { ORDERS } from '../data/customers'
-import { loadSounds } from '../game/audio'
+import { applyMute, loadSounds } from '../game/audio'
+import { loadDifficulty } from '../game/difficulty'
+import { loadSettings } from '../game/settings'
 import { makeClearFlaskTexture } from './ui/clearFlaskTexture'
 
 // Loads all assets up front so later scenes can use them instantly, then shows the intro.
@@ -10,6 +12,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    // Saved volumes and mute, read before any sound can play
+    loadSettings()
+    loadDifficulty()
+    applyMute(this)
     this.showLoadingBar()
 
     // A missing file must not crash the game: warn and let ShopScene use a fallback

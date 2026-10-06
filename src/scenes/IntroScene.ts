@@ -1,13 +1,15 @@
 import Phaser from 'phaser'
-import { DEBT, formatMoney } from '../game/economy'
+import { getDifficulty } from '../game/difficulty'
+import { formatMoney } from '../game/economy'
 import { addPlateLabel, PlateButton, PlatePanel } from './ui/PlateButton'
 import { addFullImage } from './ui/fullImage'
 import { FONT, TEXT_COLOR } from './ui/theme'
 
-const LINES = [
+// The story lines. The debt is the one of the chosen difficulty.
+const storyLines = () => [
   'The old master has passed away.',
   'He left you his little attar shop in Istanbul.',
-  `He also left a debt of ${formatMoney(DEBT)}.`,
+  `He also left a debt of ${formatMoney(getDifficulty().debt)}.`,
   'The bank gives you five days. Pay it in full, or the shop will be sold.',
   'Open the door.',
 ]
@@ -21,7 +23,9 @@ const LINE_FADE_MS = 300
 // The story before the first customer: one line at a time, click or SPACE for the next
 export class IntroScene extends Phaser.Scene {
   private index = 0
+  private lines: string[] = []
   private leaving = false
+  private pausing = false
   private lineText!: Phaser.GameObjects.Text
 
   constructor() {
@@ -31,7 +35,9 @@ export class IntroScene extends Phaser.Scene {
   create() {
     // The scene object is reused, so reset its fields here
     this.index = 0
+    this.lines = storyLines()
     this.leaving = false
+    this.pausing = false
     const { width, height } = this.scale
 
     addFullImage(this, 'shop_morning')
@@ -55,19 +61,35 @@ export class IntroScene extends Phaser.Scene {
     const keyboard = this.input.keyboard
     const onSpace = () => this.advance()
     keyboard?.on('keydown-SPACE', onSpace)
-    this.events.once('shutdown', () => keyboard?.off('keydown-SPACE', onSpace))
+    // Esc pauses (the pause menu is its own scene; this scene stands still until it is resumed)
+    const onEsc = () => this.openPause()
+    keyboard?.on('keydown-ESC', onEsc)
+    const onResume = () => (this.pausing = false)
+    this.events.on('resume', onResume)
+    this.events.once('shutdown', () => {
+      keyboard?.off('keydown-SPACE', onSpace)
+      keyboard?.off('keydown-ESC', onEsc)
+      this.events.off('resume', onResume)
+    })
 
     this.showLine()
   }
 
   private showLine() {
-    this.lineText.setText(LINES[this.index]).setAlpha(0)
+    this.lineText.setText(this.lines[this.index]).setAlpha(0)
     this.tweens.add({ targets: this.lineText, alpha: 1, duration: LINE_FADE_MS })
+  }
+
+  private openPause() {
+    if (this.pausing || this.leaving) return
+    this.pausing = true
+    this.scene.launch('PauseScene', { from: 'IntroScene' })
+    this.scene.pause()
   }
 
   private advance() {
     this.index++
-    if (this.index >= LINES.length) this.finish()
+    if (this.index >= this.lines.length) this.finish()
     else this.showLine()
   }
 

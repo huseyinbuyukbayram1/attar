@@ -1,5 +1,6 @@
 import { ORDERS } from '../data/customers'
 import type { Order } from '../data/customers'
+import { getDifficulty } from './difficulty'
 import { MAX_DROPS, MIN_DROPS } from './scoring'
 
 export type TimeOfDay = 'morning' | 'evening'
@@ -7,11 +8,14 @@ export type TimeOfDay = 'morning' | 'evening'
 export const CUSTOMERS_PER_DAY = 2
 export const TOTAL_DAYS = ORDERS.length / CUSTOMERS_PER_DAY
 export const MAX_STARS = ORDERS.length * 3
-export const MAX_SMELLS = 2 // tune after timing a full playthrough
 
 // Everything that changes while playing, kept in one place with no Phaser code,
 // so the scene only has to draw it and the rules stay easy to read.
 export class GameState {
+  // The difficulty is fixed for one game: the target and the smells per order come from it
+  readonly debt = getDifficulty().debt
+  readonly greatWin = getDifficulty().greatWin
+  readonly maxSmells = getDifficulty().smells
   orderIndex = 0
   totalStars = 0
   money = 0 // the main score: how much of the debt has been earned back
@@ -61,7 +65,7 @@ export class GameState {
   }
 
   canSmell(): boolean {
-    return this.drops.length >= MIN_DROPS && this.smellsUsed < MAX_SMELLS
+    return this.drops.length >= MIN_DROPS && this.smellsUsed < this.maxSmells
   }
 
   // Delivering only needs enough drops; smelling first is no longer required

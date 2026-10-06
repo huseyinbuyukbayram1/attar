@@ -2,7 +2,8 @@
 // Run with `npx tsx scripts/balance.ts`.
 import { INGREDIENTS } from '../src/data/ingredients'
 import { ORDERS } from '../src/data/customers'
-import { DEBT, formatMoney, payoutFor } from '../src/game/economy'
+import { DIFFICULTIES, DIFFICULTY_IDS } from '../src/game/difficulty'
+import { formatMoney, payoutFor } from '../src/game/economy'
 import { MAX_DROPS, MIN_DROPS, scoreMix } from '../src/game/scoring'
 import type { Stars } from '../src/game/scoring'
 
@@ -72,16 +73,23 @@ const customers = ORDERS.length
 const three = payoutFor(3)
 const two = payoutFor(2)
 const one = payoutFor(1)
-console.log(`\nPrices: 3★ ${three}, 2★ ${two}, 1★ ${one}`)
-console.log(`Max possible money (3★ on all ${customers} orders): ${formatMoney(customers * three)}; target (debt): ${formatMoney(DEBT)}`)
-console.log('\n3★ on X orders, 2★ on the rest:')
-for (let x = 0; x <= customers; x++) {
-  const money = x * three + (customers - x) * two
-  console.log(`  X=${String(x).padStart(2)}: ${formatMoney(money).padStart(7)}  ${money >= DEBT ? 'reaches the target' : `short by ${formatMoney(DEBT - money)}`}`)
+console.log(`\nPayout (src/game/economy.ts): 0★ ${formatMoney(payoutFor(0))} (refused), 1★ ${formatMoney(one)} (haggled), 2★ ${formatMoney(two)}, 3★ ${formatMoney(three)} (price + tip)`)
+console.log(`Max possible money (3★ on all ${customers} orders): ${formatMoney(customers * three)}. All 2★: ${formatMoney(customers * two)}; all 1★: ${formatMoney(customers * one)}`)
+
+for (const id of DIFFICULTY_IDS) {
+  const { label, debt, smells, greatWin } = DIFFICULTIES[id]
+  console.log(`\n${label}: target ${formatMoney(debt)}, ${smells} smells per order, "customers lining up" from ${formatMoney(greatWin)}`)
+  console.log('  3★ on X orders, 2★ on the rest:')
+  for (let x = 0; x <= customers; x++) {
+    const money = x * three + (customers - x) * two
+    console.log(`    X=${String(x).padStart(2)}: ${formatMoney(money).padStart(7)}  ${money >= debt ? 'reaches the target' : `short by ${formatMoney(debt - money)}`}`)
+  }
+  const needed = Array.from({ length: customers + 1 }, (_, x) => x).find((x) => x * three + (customers - x) * two >= debt)
+  console.log(`  Minimum 3★ orders needed (2★ on the rest): ${needed ?? 'not reachable'}`)
+  // Without any 3★: how many 2★ (and the rest 1★) are needed?
+  const twoNeeded = Array.from({ length: customers + 1 }, (_, y) => y).find((y) => y * two + (customers - y) * one >= debt)
+  console.log(twoNeeded === undefined ? '  With only 2★ and 1★ orders the target is not reachable' : `  Or with only 2★ and 1★: at least ${twoNeeded} orders at 2★ (the rest at 1★)`)
 }
-const needed = Array.from({ length: customers + 1 }, (_, x) => x).find((x) => x * three + (customers - x) * two >= DEBT)
-console.log(`Fewest 3★ orders needed with 2★ on the rest: ${needed ?? 'not reachable'}`)
-console.log(`All 2★: ${formatMoney(customers * two)}; all 1★: ${formatMoney(customers * one)}`)
 
 const sorted = [...rows].sort((a, b) => a.threeStarShare - b.threeStarShare)
 console.log('\nHardest orders (lowest 3★ share):')

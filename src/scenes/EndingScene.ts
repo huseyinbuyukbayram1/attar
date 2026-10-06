@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
-import { DEBT, formatMoney, GREAT_WIN_MONEY } from '../game/economy'
+import { getDifficulty } from '../game/difficulty'
+import { formatMoney } from '../game/economy'
 import { PlateButton, PlatePanel } from './ui/PlateButton'
 import { addFullImage } from './ui/fullImage'
 import { FONT, TEXT_COLOR } from './ui/theme'
@@ -30,18 +31,19 @@ export class EndingScene extends Phaser.Scene {
   }
 
   create() {
-    const won = this.money >= DEBT
+    const { debt, greatWin } = getDifficulty() // the difficulty of this game
+    const won = this.money >= debt
     this.addBackground(won)
 
     const lines = won
       ? ['The debt is paid. The shelves are full again.', 'The master would be proud.']
-      : [`You were ${formatMoney(DEBT - this.money)} short.`, "The bank closed the master's door for the last time."]
-    if (won && this.money >= GREAT_WIN_MONEY) lines.push('Customers are lining up outside.')
+      : [`You were ${formatMoney(debt - this.money)} short.`, "The bank closed the master's door for the last time."]
+    if (won && this.money >= greatWin) lines.push('Customers are lining up outside.')
 
     new PlatePanel(this, PANEL.x, PANEL.y, PANEL.width, PANEL.height)
     this.addText(TITLE_Y, won ? 'The shop is saved' : 'The shop is sold', 52)
     lines.forEach((line, i) => this.addText(FIRST_LINE_Y + i * LINE_SPACING, line, 26))
-    this.addText(MONEY_Y, `${formatMoney(this.money)} / ${formatMoney(DEBT)}`, 34)
+    this.addText(MONEY_Y, `${formatMoney(this.money)} / ${formatMoney(debt)}`, 34)
 
     // Starting ShopScene again runs its create() with a fresh GameState, straight to day 1 (no intro)
     new PlateButton(this, BUTTON.x, BUTTON.y, {

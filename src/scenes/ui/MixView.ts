@@ -3,7 +3,6 @@ import { FALLBACK_COLOR, INGREDIENT_COLORS } from '../../data/ingredientColors'
 import type { Order } from '../../data/customers'
 import { INGREDIENTS } from '../../data/ingredients'
 import type { SoundEvent } from '../../game/audio'
-import { MAX_SMELLS } from '../../game/gameState'
 import type { GameState } from '../../game/gameState'
 import { MAX_DROPS } from '../../game/scoring'
 import { Bottle, HOVER_LIFT, HOVER_SCALE } from './Bottle'
@@ -159,7 +158,7 @@ export class MixView {
     this.bottles.forEach((bottle) => bottle.setEvening(evening))
     this.flask.setEvening(evening)
     this.notebook.setEvening(evening)
-    this.note.show(order, MAX_SMELLS - this.state.smellsUsed)
+    this.note.show(order, this.state.maxSmells - this.state.smellsUsed)
     this.refresh(false)
     this.root.setVisible(true)
   }
@@ -180,6 +179,11 @@ export class MixView {
   // True if the mix is the same as the last one that was stirred
   isStirred(): boolean {
     return this.lastStirredMix === this.mixSignature()
+  }
+
+  // True while the Master's Notebook is open (the pause key must leave Esc to it)
+  isNotebookOpen(): boolean {
+    return this.notebook.isOpen()
   }
 
   // The REACT phase gives a hint: the order note on the MIX screen keeps it (display only)
@@ -298,7 +302,7 @@ export class MixView {
     this.emptyButton.setEnabled(this.state.drops.length > 0)
     // Smells are limited, adjusting is not. Once the smells are used up, Deliver replaces Smell.
     // smellsUsed only changes in the REACT phase, and show() calls this when MIX opens again.
-    const outOfSmells = this.state.smellsUsed >= MAX_SMELLS
+    const outOfSmells = this.state.smellsUsed >= this.state.maxSmells
     this.smellButton.setVisible(!outOfSmells)
     this.deliverButton.setVisible(outOfSmells)
     this.noSmellsNote.setVisible(outOfSmells)

@@ -3,7 +3,8 @@ import { ORDERS } from '../data/customers'
 import { SoundManager } from '../game/audio'
 import { GameState } from '../game/gameState'
 import type { TimeOfDay } from '../game/gameState'
-import { DEBT, formatMoney, payoutFor } from '../game/economy'
+import { deliveryFor, formatMoney } from '../game/economy'
+import type { Delivery } from '../game/economy'
 import { hintFor, mixScent, scoreMix } from '../game/scoring'
 import type { Stars } from '../game/scoring'
 import { CustomerArt } from './ui/CustomerArt'
@@ -23,6 +24,7 @@ import { addPlateLabel } from './ui/PlateButton'
 
 export const TRANSITION_MS = 350 // total time of a fade between phases (half out, half in)
 // Timing of the pause between customers (the leave, enter and evening times live with their art)
+const PAYMENT_COUNT_MS = 400 // each money line (payment, tip) counts up from 0 in this time
 const PAUSE_MS = 300 // a beat of empty shop before the next customer walks in
 const SPEECH_FADE_MS = 250 // the speech box fades in once the customer has arrived
 const BUTTON_FADE_MS = 250 // then the "Make perfume" button
@@ -88,6 +90,10 @@ export class ShopScene extends Phaser.Scene {
   private dayCard!: DayCard
   private fade!: Phaser.GameObjects.Rectangle
   private phase: Phase = 'order'
+  private pausing = false // the pause menu is open (or opening)
+  private payTween?: Phaser.Tweens.Tween // the counting of the payment lines
+  private finishPayment: () => void = () => {} // shows the final lines and the HUD at once (when Next is pressed early)
+  private leavingToEnding = false
   private devLabel?: Phaser.GameObjects.Text // TEMP: remove before release
   private sheet?: ContactSheet // TEMP: remove before release
 
@@ -98,6 +104,8 @@ export class ShopScene extends Phaser.Scene {
   create() {
     this.state = new GameState()
     this.busy = false
+    this.pausing = false
+    this.leavingToEnding = false
     this.counterOverlays = []
     this.mixBackdrop = []
 
@@ -128,6 +136,18 @@ export class ShopScene extends Phaser.Scene {
     this.orderView = new OrderView(this, () => {
       if (!this.busy) this.sounds.play('click')
       this.goTo('mix')
+    })
+    // Esc pauses the game. This handler is added BEFORE the views (the notebook has its own Esc
+    // handler): it runs first, and leaves Esc to an open notebook.
+    const onEsc = () => {
+      if (!this.mixView.isNotebookOpen()) this.openPause()
+    }
+    this.input.keyboard?.on('keydown-ESC', onEsc)
+    const onResume = () => (this.pausing = false)
+    this.events.on('resume', onResume)
+    this.events.once('shutdown', () => {
+      this.input.keyboard?.off('keydown-ESC', onEsc)
+      this.events.off('resume', onResume)
     })
     this.mixView = new MixView(this, this.state, {
       onSmell: () => this.goTo('react', () => this.enterReact()),
@@ -193,7 +213,7 @@ export class ShopScene extends Phaser.Scene {
 
   private updateHud() {
     const { state } = this
-    this.hud.setText(`${formatMoney(state.money)} / ${formatMoney(DEBT)}`)
+    this.hud.setText(`${formatMoney(state.money)} / ${formatMoney(state.debt)}`)
   }
 
   // Resets the screen for the customer in the state, without showing the customer yet: the
@@ -312,18 +332,70 @@ export class ShopScene extends Phaser.Scene {
   private deliver() {
     const { state } = this
     const score = scoreMix(state.drops, state.order)
-    const payout = payoutFor(score.stars)
+    const delivery = deliveryFor(score.stars)
     state.addStars(score.stars)
-    state.addMoney(payout)
+    state.addMoney(delivery.payment + delivery.tip)
     this.mixView.clearGhosts()
-    if (payout > 0) this.sounds.play('deliver') // no money, no happy sound
-    this.updateHud()
+    if (delivery.payment + delivery.tip > 0) this.sounds.play('deliver') // no money, no happy sound
     const stars = '★'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
-    this.speech.setText(`${stars}\n${REACTIONS[score.stars]}\n+${formatMoney(payout)}`)
+    this.showPayment(`${stars}\n${REACTIONS[score.stars]}`, delivery)
     this.reactView.showNext(state.isLastOrder)
   }
 
+  // The result text: the stars and the reaction, then the money as separate lines that count up one
+  // after the other ("Payment +$200", then "Tip +$100"). The HUD total changes when the counting ends.
+  private showPayment(head: string, delivery: Delivery) {
+    const text = (payment: number, tip: number | null) => {
+      if (delivery.kind === 'refused') return `${head}\nNo sale`
+      const haggled = delivery.kind === 'haggled' ? ' (haggled)' : ''
+      return `${head}\nPayment +${formatMoney(payment)}${haggled}${tip === null ? '' : `\nTip +${formatMoney(tip)}`}`
+    }
+    const finish = () => {
+      this.speech.setText(text(delivery.payment, delivery.tip > 0 ? delivery.tip : null))
+      this.updateHud()
+      this.finishPayment = () => {}
+    }
+    this.finishPayment = () => {
+      this.payTween?.stop()
+      finish()
+    }
+    if (delivery.kind === 'refused') {
+      finish()
+      return
+    }
+    this.speech.setText(text(0, null))
+    this.countUp(delivery.payment, (value) => this.speech.setText(text(value, null)), () => {
+      if (delivery.tip === 0) {
+        finish()
+        return
+      }
+      this.speech.setText(text(delivery.payment, 0))
+      this.countUp(delivery.tip, (value) => this.speech.setText(text(delivery.payment, value)), finish)
+    })
+  }
+
+  private countUp(to: number, onValue: (value: number) => void, onDone: () => void) {
+    this.payTween = this.tweens.addCounter({
+      from: 0,
+      to,
+      duration: PAYMENT_COUNT_MS,
+      onUpdate: (tween) => onValue(Math.round(tween.getValue() ?? 0)),
+      onComplete: onDone,
+    })
+  }
+
+  // Esc pauses the whole scene (its tweens, timers and animations stand still) and opens the pause
+  // menu on top. Not while a fade, the day card or the end of the game is going on.
+  private openPause() {
+    const covered = this.fade.alpha > 0.01 || this.dayCard.isOpen() || this.leavingToEnding
+    if (this.pausing || covered) return
+    this.pausing = true
+    this.scene.launch('PauseScene', { from: 'ShopScene' })
+    this.scene.pause()
+  }
+
   private next() {
+    this.finishPayment() // if the money is still counting up, show it at once
     // Hide the buttons and block clicks so a double click can't advance twice during the fade
     this.busy = true
     this.sounds.play('click')
@@ -331,6 +403,7 @@ export class ShopScene extends Phaser.Scene {
     this.speech.setVisible(false) // the result text goes away as the customer leaves
     this.customer.leave(() => {
       if (this.state.isLastOrder) {
+        this.leavingToEnding = true
         this.scene.start('EndingScene', { money: this.state.money })
         return
       }

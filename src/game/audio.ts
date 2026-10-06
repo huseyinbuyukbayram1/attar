@@ -3,6 +3,7 @@
 // plain TypeScript like the rest of src/game/.
 import type Phaser from 'phaser'
 import type { TimeOfDay } from './gameState'
+import { getMusicDuck, getSettings, onSettingsChange, updateSettings } from './settings'
 
 export type SoundEvent = 'ambienceMorning' | 'ambienceEvening' | 'bottle' | 'pour' | 'mix' | 'smell' | 'deliver' | 'click' | 'signFall'
 
@@ -48,6 +49,25 @@ const POUR_FADE_MS = 150
 const AMBIENCE_FADE_MS = 1500 // same as the morning/evening crossfade of the picture
 const MUTE_KEY = 'keydown-M'
 
+// Two volume groups, each with its own slider: "music" is the music and both ambiences, "effects" is
+// everything else. What is heard = master x group x the sound's own base volume (the tables above).
+type Group = 'music' | 'effects'
+const groupOf = (event: SoundEvent): Group => (event === 'ambienceMorning' || event === 'ambienceEvening' ? 'music' : 'effects')
+function groupGain(group: Group): number {
+  const settings = getSettings()
+  return settings.master * (group === 'music' ? settings.music * getMusicDuck() : settings.effects)
+}
+const effectiveVolume = (event: SoundEvent) => VOLUME[event] * groupGain(groupOf(event))
+
+// Mute is a setting too: it is saved, and applied to the whole game's sound
+export function applyMute(scene: Phaser.Scene) {
+  scene.sound.mute = getSettings().muted
+}
+export function toggleMute(scene: Phaser.Scene) {
+  updateSettings({ muted: !getSettings().muted })
+  applyMute(scene)
+}
+
 const EVENTS = Object.keys(SOUND_FILES) as SoundEvent[]
 const keyOf = (event: SoundEvent) => `sound_${event}`
 
@@ -67,9 +87,53 @@ export function loadSounds(scene: Phaser.Scene) {
 // missing (the loader has already warned about it). The shop uses SoundManager instead.
 // `seek` starts the sound that many seconds into the file.
 export function playEffect(scene: Phaser.Scene, event: SoundEvent, seek = 0) {
+  startEffect(scene, event, effectiveVolume(event), seek)
+}
+
+// Every effect that is playing, with its event. The pause menu pauses exactly these (music and
+// ambience are not in here: they are only turned down). A sound leaves the list when it ends.
+type Effect = Phaser.Sound.BaseSound & { volume: number }
+const effectSounds = new Map<Effect, SoundEvent>()
+let pausedEffects: Effect[] = [] // the ones the pause menu stopped, so that it can resume exactly those
+
+// Starts one effect and keeps track of it. Returns undefined if the file is missing.
+function startEffect(scene: Phaser.Scene, event: SoundEvent, volume: number, seek = 0): Effect | undefined {
   const key = keyOf(event)
-  if (!scene.cache.audio.exists(key)) return
-  scene.sound.play(key, { volume: VOLUME[event], seek })
+  if (!scene.cache.audio.exists(key)) return undefined
+  const sound = scene.sound.add(key, { volume }) as Effect
+  effectSounds.set(sound, event)
+  const forget = () => effectSounds.delete(sound)
+  sound.once('complete', () => {
+    forget()
+    sound.destroy()
+  })
+  sound.once('destroy', forget)
+  sound.play({ seek })
+  return sound
+}
+
+// The pause menu opened: pause every effect that is playing right now. Their volume is not touched.
+export function pauseEffects() {
+  pausedEffects = [...effectSounds.keys()].filter((sound) => sound.isPlaying)
+  pausedEffects.forEach((sound) => sound.pause())
+}
+
+// Back to the game: resume exactly the effects that were paused, each at its normal volume
+// (master x effects x its own base volume, which also covers sliders moved during the pause)
+export function resumeEffects() {
+  for (const sound of pausedEffects) {
+    const event = effectSounds.get(sound)
+    if (event === undefined) continue // it was destroyed meanwhile
+    sound.volume = effectiveVolume(event)
+    sound.resume()
+  }
+  pausedEffects = []
+}
+
+// Restart or main menu: the paused effects must not come back in the next scene
+export function stopPausedEffects() {
+  for (const sound of pausedEffects) sound.destroy()
+  pausedEffects = []
 }
 
 // Starts a music loop with a fade in, and stops it with a fade out when the scene shuts down (or
@@ -83,20 +147,25 @@ export function playMusic(scene: Phaser.Scene, key: MusicKey): { stop: (fadeMs?:
     if (stopped) return
     sound = scene.sound.add(key, { loop: true, volume: 0 }) as Phaser.Sound.BaseSound & { volume: number }
     sound.play()
-    scene.tweens.add({ targets: sound, volume: MUSIC_VOLUME[key], duration: MUSIC_FADE_MS })
+    scene.tweens.add({ targets: sound, volume: MUSIC_VOLUME[key] * groupGain('music'), duration: MUSIC_FADE_MS })
   }
   if (scene.sound.locked) scene.sound.once('unlocked', begin)
   else begin()
 
-  const toggleMute = () => {
-    scene.sound.mute = !scene.sound.mute
-  }
-  scene.input.keyboard?.on(MUTE_KEY, toggleMute)
+  const onMuteKey = () => toggleMute(scene)
+  scene.input.keyboard?.on(MUTE_KEY, onMuteKey)
+  // A change of the sliders is heard at once: the fade in is cut short and the volume set
+  const stopListening = onSettingsChange(() => {
+    if (!sound) return
+    scene.tweens.killTweensOf(sound)
+    sound.volume = MUSIC_VOLUME[key] * groupGain('music')
+  })
 
   const stop = (fadeMs = MUSIC_FADE_MS) => {
     if (stopped) return
     stopped = true
-    scene.input.keyboard?.off(MUTE_KEY, toggleMute)
+    scene.input.keyboard?.off(MUTE_KEY, onMuteKey)
+    stopListening()
     const ending = sound
     if (!ending) return
     scene.tweens.killTweensOf(ending)
@@ -113,13 +182,14 @@ export class SoundManager {
   private ambience: Partial<Record<'ambienceMorning' | 'ambienceEvening', Phaser.Sound.BaseSound>> = {}
   private time: TimeOfDay = 'morning'
   private destroyed = false
-  private toggleMute = () => {
-    this.scene.sound.mute = !this.scene.sound.mute
-  }
+  private onMuteKey = () => toggleMute(this.scene)
+  private stopListening: () => void
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
-    scene.input.keyboard?.on(MUTE_KEY, this.toggleMute)
+    scene.input.keyboard?.on(MUTE_KEY, this.onMuteKey)
+    // A change of the sliders is heard at once: the ambience takes the new level
+    this.stopListening = onSettingsChange(() => this.setTime(this.time, true))
   }
 
   // Browsers only allow sound after a click. Phaser reports when that has happened ('unlocked');
@@ -144,8 +214,8 @@ export class SoundManager {
   setTime(time: TimeOfDay, instant = false) {
     this.time = time
     const levels = {
-      ambienceMorning: time === 'morning' ? VOLUME.ambienceMorning : 0,
-      ambienceEvening: time === 'evening' ? VOLUME.ambienceEvening : 0,
+      ambienceMorning: time === 'morning' ? effectiveVolume('ambienceMorning') : 0,
+      ambienceEvening: time === 'evening' ? effectiveVolume('ambienceEvening') : 0,
     }
     for (const event of ['ambienceMorning', 'ambienceEvening'] as const) {
       const sound = this.ambience[event] as (Phaser.Sound.BaseSound & { volume: number }) | undefined
@@ -160,17 +230,16 @@ export class SoundManager {
     const key = keyOf(event)
     if (!this.scene.cache.audio.exists(key)) return
     if (event === 'pour') {
-      this.playCutShort(key, VOLUME[event])
+      this.playCutShort(effectiveVolume(event))
       return
     }
-    this.scene.sound.play(key, { volume: VOLUME[event] })
+    startEffect(this.scene, event, effectiveVolume(event))
   }
 
   // Plays a sound, fades it out at the end of POUR_SOUND_MS and removes it
-  private playCutShort(key: string, volume: number) {
-    const sound = this.scene.sound.add(key, { volume }) as Phaser.Sound.BaseSound & { volume: number }
-    sound.once('complete', () => sound.destroy()) // the file was shorter than the cut: nothing to fade
-    sound.play()
+  private playCutShort(volume: number) {
+    const sound = startEffect(this.scene, 'pour', volume) // the file may be shorter than the cut: then nothing to fade
+    if (!sound) return
     this.scene.time.delayedCall(POUR_SOUND_MS - POUR_FADE_MS, () => {
       if (!sound.isPlaying) return
       this.scene.tweens.add({ targets: sound, volume: 0, duration: POUR_FADE_MS, onComplete: () => sound.destroy() })
@@ -180,7 +249,8 @@ export class SoundManager {
   // Called when the scene shuts down: stop the loops and the key listener
   destroy() {
     this.destroyed = true
-    this.scene.input.keyboard?.off(MUTE_KEY, this.toggleMute)
+    this.scene.input.keyboard?.off(MUTE_KEY, this.onMuteKey)
+    this.stopListening()
     Object.values(this.ambience).forEach((sound) => sound?.destroy())
     this.ambience = {}
   }

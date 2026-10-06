@@ -1,6 +1,8 @@
 import Phaser from 'phaser'
 import { playEffect, playMusic } from '../game/audio'
 import { PlateButton } from './ui/PlateButton'
+import { DifficultyPanel } from './ui/DifficultyPanel'
+import { SettingsPanel } from './ui/SettingsPanel'
 import { addLabelPlate, TEXT_COLOR } from './ui/theme'
 
 // ---- Title screen: tuning constants (positions in 1280x720 canvas px) ----
@@ -141,6 +143,8 @@ export class TitleScene extends Phaser.Scene {
   private dust!: Phaser.GameObjects.Container
   private music?: { stop: (fadeMs?: number) => void }
   private zzzTimer?: Phaser.Time.TimerEvent
+  private settingsPanel?: SettingsPanel
+  private difficultyPanel?: DifficultyPanel
   private catZone?: Phaser.GameObjects.Zone
   private catTip?: Phaser.GameObjects.Container
   private catLineTimer?: Phaser.Time.TimerEvent // while a line from a click is showing
@@ -178,9 +182,9 @@ export class TitleScene extends Phaser.Scene {
     })
     this.input.on('pointerdown', () => this.skipIntro())
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-      if (!this.built) return
+      if (!this.built || this.settingsPanel?.isOpen() || this.difficultyPanel?.isOpen()) return // an open panel has the keys
       if (!this.ready) this.skipIntro()
-      else if (event.code === 'Enter' || event.code === 'Space') this.play()
+      else if (event.code === 'Enter' || event.code === 'Space') this.askDifficulty()
     })
 
     // The logo font is loaded by the browser on demand: wait for it, so the text never shows in a
@@ -203,6 +207,8 @@ export class TitleScene extends Phaser.Scene {
     this.buttons = this.makeButtons().setAlpha(0).setVisible(false)
     this.dust = this.add.container(0, 0)
     this.makeCat()
+    this.settingsPanel = new SettingsPanel(this)
+    this.difficultyPanel = new DifficultyPanel(this, () => this.play()) // a pick starts the sign-fall sequence
 
     // 1) the background has started to fade in; 2) the big sign drops in from above, then swings
     // like a pendulum
@@ -283,14 +289,14 @@ export class TitleScene extends Phaser.Scene {
       label: 'Play',
       width: BUTTONS.width,
       height: BUTTONS.height,
-      onClick: () => (this.ready ? this.play() : this.skipIntro()), // a click during the intro only skips it
+      onClick: () => (this.ready ? this.askDifficulty() : this.skipIntro()), // a click during the intro only skips it
     })
     const settings = new PlateButton(this, BUTTONS.x, BUTTONS.firstY + BUTTONS.gap, {
       label: 'Settings',
       width: BUTTONS.width,
       height: BUTTONS.height,
       onClick: () => {
-        if (this.ready) console.log('settings TODO')
+        if (this.ready) this.settingsPanel?.open()
       },
     })
     this.plateButtons = [play, settings]
@@ -482,7 +488,12 @@ export class TitleScene extends Phaser.Scene {
     })
   }
 
-  // Play: the sign falls (see the constants), then the screen fades to black and the story starts.
+  // Play (or Enter / Space) first asks for the difficulty; the pick starts play()
+  private askDifficulty() {
+    if (!this.leaving) this.difficultyPanel?.open()
+  }
+
+  // The sign falls (see the constants), then the screen fades to black and the story starts.
   // From the first moment the buttons are off and keys and clicks do nothing more.
   private play() {
     if (this.leaving) return

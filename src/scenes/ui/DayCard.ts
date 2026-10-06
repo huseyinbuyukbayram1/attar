@@ -34,6 +34,10 @@ export class DayCard {
     this.root.add([backdrop, this.title])
   }
 
+  isOpen(): boolean {
+    return this.open
+  }
+
   // startOpaque skips the fade-in, for the very first card when there is nothing to fade from
   show(day: number, onCovered: () => void, onDone: () => void, startOpaque = false) {
     this.title.setText(`Day ${day}`)
