@@ -64,14 +64,18 @@ export class EndingScene extends Phaser.Scene {
   private finalShown = false
   private leaving = false
   private panel!: StoryPanel
+  // Set when the ending is only looked at (Settings > Extras > View endings): it runs on top of the paused
+  // scene it came from (`from`), changes nothing of the run, and its only button goes back there
+  private preview?: { from: string }
 
   constructor() {
     super('EndingScene')
   }
 
   // Phaser hands over whatever ShopScene passed to scene.start
-  init(data: { money: number }) {
+  init(data: { money: number; preview?: { from: string } }) {
     this.money = data.money
+    this.preview = data.preview
   }
 
   create() {
@@ -82,6 +86,7 @@ export class EndingScene extends Phaser.Scene {
     this.finalShown = false
     this.leaving = false
 
+    if (this.preview) this.scene.bringToTop() // the pause menu is registered after this scene, so it would be drawn above
     this.addArt()
     this.panel = new StoryPanel(this, {
       x: this.scale.width / 2,
@@ -99,7 +104,13 @@ export class EndingScene extends Phaser.Scene {
     const keyboard = this.input.keyboard
     const onSpace = () => this.advance()
     keyboard?.on('keydown-SPACE', onSpace)
-    this.events.once('shutdown', () => keyboard?.off('keydown-SPACE', onSpace))
+    // In the preview Esc goes back, too
+    const onEsc = () => this.preview && this.back()
+    keyboard?.on('keydown-ESC', onEsc)
+    this.events.once('shutdown', () => {
+      keyboard?.off('keydown-SPACE', onSpace)
+      keyboard?.off('keydown-ESC', onEsc)
+    })
   }
 
   // The picture in a container that zooms slowly; on the lose picture the container also holds the sign text
@@ -162,6 +173,11 @@ export class EndingScene extends Phaser.Scene {
     const { debt } = getDifficulty()
     const row = BOTTOM_ROW.row
     this.add.image(row.bandX, BOTTOM_ROW.band.y, 'story_band').setDisplaySize(row.bandWidth, BOTTOM_ROW.band.height)
+    if (this.preview) {
+      // The preview has no money line and no Play again: just the way back
+      new PlateButton(this, row.bandX, BOTTOM_ROW.y, { label: 'Back', width: BOTTOM_ROW.buttonWidth, height: BOTTOM_ROW.buttonHeight, fontSize: BOTTOM_ROW.fontSize, onClick: () => this.back() })
+      return
+    }
     this.add
       .text(row.moneyX, BOTTOM_ROW.y, `${formatMoney(this.money)} / ${formatMoney(debt)}`, { fontFamily: FONT, fontSize: `${BOTTOM_ROW.moneySize}px`, color: BOTTOM_ROW.moneyColor })
       .setOrigin(0.5)
@@ -172,6 +188,18 @@ export class EndingScene extends Phaser.Scene {
     // "Play again" starts a fresh game at Day 1 with the same difficulty, without the story (like Restart in the pause menu)
     button(row.buttonXs[0], 'Play again', () => this.go('ShopScene'))
     button(row.buttonXs[1], 'Main menu', () => this.go('TitleScene'))
+  }
+
+  // Preview only: fade out, close this scene and let the scene below go on exactly where it was
+  private back() {
+    if (this.leaving || !this.preview) return
+    this.leaving = true
+    const { from } = this.preview
+    this.cameras.main.fadeOut(LEAVE_FADE_MS, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.resume(from)
+      this.scene.stop()
+    })
   }
 
   private go(target: 'ShopScene' | 'TitleScene') {
