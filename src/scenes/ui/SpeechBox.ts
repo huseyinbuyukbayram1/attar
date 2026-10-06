@@ -1,20 +1,20 @@
 import Phaser from 'phaser'
-import { PlatePanel, TAG_CORNER_SCALE } from './PlateButton'
+import { PlatePanel } from './PlateButton'
 import { FONT, TEXT_COLOR } from './theme'
 
 // Layout numbers for the 1280x720 screen. The top edge is fixed; the box grows downwards.
 const BOX = { x: 640, top: 50, minWidth: 420, maxWidth: 760, minHeight: 100 }
 // Room between the text and the plate's border and corner ornaments
-const PADDING = { x: 40, y: 30 }
-const TAG = { width: 170, height: 34, inset: 18, overlap: 8 } // name tag on the top-left corner
+const PADDING = { x: 40, y: 26 }
+// The customer's name is the first line inside the bubble: bold, copper, a little smaller than the dialogue
+const NAME = { size: 18, color: '#9a5a32', gap: 4 } // gap: between the name and the dialogue
 
-// The customer's speech bubble plus a name tag. Used for the order and for the reaction.
-// The box is sized to its text, so short lines get a small bubble.
+// The customer's speech bubble: the name on the first line, the dialogue below it. Used for the order
+// and for the reaction. The box is sized to its text, so short lines get a small bubble.
 export class SpeechBox {
   private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
   private background: PlatePanel
-  private tag: PlatePanel
   private nameText: Phaser.GameObjects.Text
   private speechText: Phaser.GameObjects.Text
 
@@ -23,10 +23,10 @@ export class SpeechBox {
     // Children use positions relative to the top-center of the box, so the whole thing moves as one
     this.root = scene.add.container(BOX.x, BOX.top)
     this.background = new PlatePanel(scene, 0, 0, BOX.minWidth, BOX.minHeight)
-    this.tag = new PlatePanel(scene, 0, 0, TAG.width, TAG.height, TAG_CORNER_SCALE)
     this.nameText = scene.add
-      .text(0, 0, '', { fontFamily: FONT, fontSize: '18px', color: TEXT_COLOR })
+      .text(0, 0, '', { fontFamily: FONT, fontSize: `${NAME.size}px`, fontStyle: 'bold', color: NAME.color })
       .setOrigin(0.5)
+      .setResolution(2)
     this.speechText = scene.add
       .text(0, 0, '', {
         fontFamily: FONT,
@@ -37,12 +37,13 @@ export class SpeechBox {
         wordWrap: { width: BOX.maxWidth - PADDING.x * 2 },
       })
       .setOrigin(0.5)
-    this.root.add([this.background, this.tag, this.nameText, this.speechText])
+    this.root.add([this.background, this.nameText, this.speechText])
     this.layout()
   }
 
   setSpeaker(name: string) {
     this.nameText.setText(name)
+    this.layout()
   }
 
   setText(text: string) {
@@ -64,17 +65,18 @@ export class SpeechBox {
     this.root.setVisible(visible)
   }
 
-  // Sizes the box to the wrapped text and redraws it, with the name tag on its top-left corner
+  // Sizes the box to the name and the wrapped text and redraws it
   private layout() {
-    const width = Phaser.Math.Clamp(this.speechText.width + PADDING.x * 2, BOX.minWidth, BOX.maxWidth)
-    const height = Math.max(BOX.minHeight, this.speechText.height + PADDING.y * 2)
-    const tagX = -width / 2 + TAG.inset + TAG.width / 2
-    const tagY = -TAG.height / 2 + TAG.overlap
+    const nameHeight = this.nameText.text ? this.nameText.height : 0
+    const gap = nameHeight > 0 ? NAME.gap : 0
+    const contentHeight = nameHeight + gap + this.speechText.height
+    const width = Phaser.Math.Clamp(Math.max(this.speechText.width, this.nameText.width) + PADDING.x * 2, BOX.minWidth, BOX.maxWidth)
+    const height = Math.max(BOX.minHeight, contentHeight + PADDING.y * 2)
+    const top = (height - contentHeight) / 2 // the name and the text are centered vertically as one block
 
     this.background.setPosition(0, height / 2)
     this.background.resize(width, height)
-    this.tag.setPosition(tagX, tagY)
-    this.nameText.setPosition(tagX, tagY)
-    this.speechText.setPosition(0, height / 2)
+    this.nameText.setPosition(0, top + nameHeight / 2)
+    this.speechText.setPosition(0, top + nameHeight + gap + this.speechText.height / 2)
   }
 }

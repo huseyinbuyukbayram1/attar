@@ -1,7 +1,10 @@
 import Phaser from 'phaser'
 import { PlateButton } from './PlateButton'
 
-const BUTTON = { x: 640, y: 640, width: 260, height: 58 }
+// Bottom-right corner of the counter's front face (y 649..720, below the seam with the counter top):
+// right-aligned with a 32 px margin, 24 px above the bottom edge of the screen
+const BUTTON_SIZE = { width: 220, height: 44 }
+const BUTTON = { x: 1280 - 32 - BUTTON_SIZE.width / 2, y: 720 - 24 - BUTTON_SIZE.height / 2, ...BUTTON_SIZE }
 
 // Phase ORDER: the customer has said what they want; the only thing to do is start mixing
 export class OrderView {

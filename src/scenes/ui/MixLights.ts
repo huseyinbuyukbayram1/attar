@@ -26,7 +26,6 @@ const BULBS = {
 // with a gentle slow flicker in the evening only
 const LANTERN = { x: 398, y: 100, radius: 70, color: 0xffc266, flickerMin: 0.85, flickerMs: 1800 }
 const BRIGHTNESS = { morning: 0.35, evening: 1 } // multiplies every glow
-const FADE_MS = 400 // same as the evening look in MIX
 
 // The warm lights of the counter view. They sit above the picture and below the bottles and
 // the flask. In the morning they are barely there; in the evening they shine fully.
@@ -61,7 +60,8 @@ export class MixLights {
     }
   }
 
-  // Called when the MIX phase starts: evening fades up to full brightness, morning stays dim
+  // Called when the MIX phase starts (the screen is still dark then, so no fade: it would show the
+  // dim daytime lights first): evening is at full brightness at once, morning stays dim
   show(evening: boolean) {
     this.scene.tweens.killTweensOf(this.root)
     this.scene.tweens.killTweensOf(this.lantern)
@@ -79,8 +79,7 @@ export class MixLights {
       repeat: -1,
       ease: 'Sine.easeInOut',
     })
-    this.root.setAlpha(BRIGHTNESS.morning)
-    this.scene.tweens.add({ targets: this.root, alpha: BRIGHTNESS.evening, duration: FADE_MS })
+    this.root.setAlpha(BRIGHTNESS.evening)
   }
 
   hide() {

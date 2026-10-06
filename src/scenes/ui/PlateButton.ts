@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { multiplyColor } from './liquidColor'
 import { FONT } from './theme'
 
 // The painted button plates (public/assets/ui/). A plate is stretched with a NineSlice: the four
@@ -33,6 +34,8 @@ export type PlateButtonOptions = {
   height: number
   fontSize?: number
   variant?: PlateVariant
+  accent?: number // multiplied into the plate's color in every state, e.g. 0xffe2a8 for a warm golden plate
+  boldLabel?: boolean
   onClick: () => void
 }
 
@@ -57,6 +60,7 @@ export class PlateButton extends Phaser.GameObjects.Container {
   private label: Phaser.GameObjects.Text
   private innerShadow: Phaser.GameObjects.Graphics
   private selected = false
+  private accent?: number
   private buttonWidth: number
   private fontSize: number
   private cornerPx: number
@@ -69,6 +73,7 @@ export class PlateButton extends Phaser.GameObjects.Container {
     const { width, height, onClick } = options
     this.buttonWidth = width
     this.fontSize = options.fontSize ?? DEFAULT_FONT_SIZE
+    this.accent = options.accent
 
     const made = makePlate(scene, options.variant ?? 'long', width, height)
     this.cornerPx = made?.cornerPx ?? 0
@@ -84,7 +89,7 @@ export class PlateButton extends Phaser.GameObjects.Container {
     this.innerShadow.strokeRoundedRect(-width / 2 + INNER_SHADOW.inset, -height / 2 + INNER_SHADOW.inset, width - INNER_SHADOW.inset * 2, height - INNER_SHADOW.inset * 2, 6)
     this.add(this.innerShadow)
     this.label = scene.add
-      .text(0, 0, '', { fontFamily: FONT, fontSize: `${this.fontSize}px`, color: LABEL_COLOR })
+      .text(0, 0, '', { fontFamily: FONT, fontSize: `${this.fontSize}px`, fontStyle: options.boldLabel ? 'bold' : 'normal', color: LABEL_COLOR })
       .setOrigin(0.5)
     this.add(this.label)
     this.setLabel(options.label)
@@ -142,7 +147,7 @@ export class PlateButton extends Phaser.GameObjects.Container {
   private show(state: 'normal' | 'hover' | 'pressed') {
     // Selected only shows while the mouse is not on the button (hover and press look the same as always)
     const look = !this.enabled ? 'disabled' : state === 'normal' && this.selected ? 'selected' : state
-    const tint = TINT[look]
+    const tint = this.accent !== undefined && look !== 'disabled' ? multiplyColor(TINT[look], this.accent) : TINT[look]
     this.label.setColor(look === 'selected' ? LABEL_COLOR_SELECTED : LABEL_COLOR)
     this.innerShadow.setVisible(look === 'selected')
     this.plate?.setTint(tint)

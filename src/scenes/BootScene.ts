@@ -45,9 +45,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image('notebook_open', 'assets/props/notebook_open.png')
     // The waste pot that rises behind the flask when it is emptied; without it the animation has no pot
     this.load.image('waste_pot', 'assets/props/waste_pot.png')
-    // Optional art for the two endings; without it EndingScene uses the shop background with an overlay
-    this.load.image('ending_win', 'assets/backgrounds/ending_win.jpg')
-    this.load.image('ending_lose', 'assets/backgrounds/ending_lose.jpg')
+    // The story: the grandfather's portrait for the intro and the three ending pictures (a missing
+    // ending picture falls back to the shop with an overlay)
+    this.load.image('master_portrait', 'assets/story/master_portrait.png')
+    this.load.image('ending_win', 'assets/story/ending_win.jpg')
+    this.load.image('ending_greatwin', 'assets/story/ending_greatwin.jpg')
+    this.load.image('ending_lose', 'assets/story/ending_lose.jpg')
 
     loadSounds(this) // only the sounds that have a file name in SOUND_FILES
 

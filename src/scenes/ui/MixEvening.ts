@@ -7,7 +7,6 @@ import type { Band, Rect } from './shapedLight'
 // The evening look for the MIX phase, drawn over the counter_view picture and behind the
 // bottles and flask. Positions are in 1280x720 canvas pixels, measured on the arched window and
 // the lantern of counter_view.jpg; tune everything here.
-const FADE_MS = 400
 // The arched window of counter_view.jpg (measured: the lit panes span x 154..251, y 194..428, the
 // whole arch about x 144..280, y 72..448). The rectangle is a little larger than the arch.
 const WINDOW_RECT: Rect = { x: 140, y: 70, width: 145, height: 380 }
@@ -122,25 +121,20 @@ export class MixEvening {
     this.windowLight = scene.add.container(0, 0, [this.breath, this.dust]).setDepth(depth + 1).setVisible(false)
   }
 
-  // Called when the MIX phase starts. Evening: the whole look fades in, the window light breathes
-  // and dust drifts in the shaft. Morning: no evening look, only the faint sharp window light
+  // Called when the MIX phase starts, while the screen is still dark from the phase change, so the
+  // look is put on at once: a fade here would show the daytime picture first. Evening: the whole
+  // look, the window light breathes and dust drifts in the shaft. Morning: no evening look, only the faint sharp window light
   // (the morning window is already bright): no bloom, shaft, patch, dust or breathing.
   show(evening: boolean) {
     this.stopWindowLife()
     this.scene.tweens.killTweensOf([this.root, this.windowLight])
     this.windowOnlyEvening.forEach((layer) => (layer as Phaser.GameObjects.Image).setVisible(evening))
-    this.windowLight.setAlpha(0).setVisible(true)
-    this.scene.tweens.add({
-      targets: this.windowLight,
-      alpha: evening ? WINDOW_BRIGHTNESS.evening : WINDOW_BRIGHTNESS.morning,
-      duration: FADE_MS,
-    })
+    this.windowLight.setAlpha(evening ? WINDOW_BRIGHTNESS.evening : WINDOW_BRIGHTNESS.morning).setVisible(true)
     if (!evening) {
       this.root.setVisible(false)
       return
     }
-    this.root.setAlpha(0).setVisible(true)
-    this.scene.tweens.add({ targets: this.root, alpha: 1, duration: FADE_MS })
+    this.root.setAlpha(1).setVisible(true)
     this.scene.tweens.add({ targets: this.breath, alpha: BREATH.min, duration: BREATH.ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
     this.startDust()
   }

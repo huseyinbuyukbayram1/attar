@@ -3,6 +3,7 @@ import { ORDERS } from '../data/customers'
 import { SoundManager } from '../game/audio'
 import { GameState } from '../game/gameState'
 import type { TimeOfDay } from '../game/gameState'
+import { DEV_KEYS, devEndingMoney } from '../game/dev'
 import { deliveryFor, formatMoney } from '../game/economy'
 import type { Delivery } from '../game/economy'
 import { hintFor, mixScent, scoreMix } from '../game/scoring'
@@ -30,7 +31,7 @@ const SPEECH_FADE_MS = 250 // the speech box fades in once the customer has arri
 const BUTTON_FADE_MS = 250 // then the "Make perfume" button
 const COUNTER_TOP_Y = 578 // in canvas pixels: the counter's top edge; everything from here down is drawn in front of the customer
 // TEMP: remove before release (also the marked code in create() and showCustomerAtOnce())
-const DEV_SKIP_KEYS = true // N = next customer, B = previous (no scoring), G = contact sheet, E = evening in it
+const DEV_SKIP_KEYS = DEV_KEYS // N = next customer, B = previous (no scoring), G = contact sheet, E = evening in it
 
 const EVENING_CUSTOMER_TINT = 0xffd9b0 // warm tint so the portrait matches the evening light
 // Depth of every scene layer, back to front. UI objects keep the default depth 0, so all the
@@ -52,7 +53,6 @@ const FADE_COLOR = 0x1a1210
 const FADE_DEPTH = 1000 // above everything, so the transition covers the whole screen
 
 // Small always-on labels in the top corners (16 px from the canvas edges)
-const TITLE = { x: 76, y: 38, width: 120, height: 48 }
 const HUD = { x: 1144, y: 38, width: 240, height: 44 } // one line: money / debt
 
 // What the customer says after delivery, by star count
@@ -129,7 +129,6 @@ export class ShopScene extends Phaser.Scene {
     this.mixEvening = new MixEvening(this, 'counter_view', DEPTH.mixEvening)
     this.mixLights = new MixLights(this, DEPTH.mixLights)
 
-    addPlateLabel(this, TITLE.x, TITLE.y, TITLE.width, TITLE.height, 'Attar', 32)
     this.hud = addPlateLabel(this, HUD.x, HUD.y, HUD.width, HUD.height, '', 18)
 
     this.speech = new SpeechBox(this)
@@ -473,13 +472,28 @@ export class ShopScene extends Phaser.Scene {
     const toggleEvening = () => {
       if (!this.busy) this.sheet?.toggleEvening()
     }
+    // 1 / 2 / 3: jump to the lose / win / great win ending (the money is made up, see game/dev.ts)
+    const endWith = (money: number) => () => {
+      if (this.leavingToEnding) return
+      this.leavingToEnding = true
+      this.scene.start('EndingScene', { money })
+    }
+    const loseEnding = endWith(devEndingMoney('lose', this.state.debt, this.state.greatWin))
+    const winEnding = endWith(devEndingMoney('win', this.state.debt, this.state.greatWin))
+    const greatEnding = endWith(devEndingMoney('great', this.state.debt, this.state.greatWin))
     const keyboard = this.input.keyboard
+    keyboard?.on('keydown-ONE', loseEnding)
+    keyboard?.on('keydown-TWO', winEnding)
+    keyboard?.on('keydown-THREE', greatEnding)
     keyboard?.on('keydown-N', next)
     keyboard?.on('keydown-B', previous)
     keyboard?.on('keydown-G', toggleSheet)
     keyboard?.on('keydown-E', toggleEvening)
     // Phaser reuses this scene on restart, so remove the listeners when it shuts down
     this.events.once('shutdown', () => {
+      keyboard?.off('keydown-ONE', loseEnding)
+      keyboard?.off('keydown-TWO', winEnding)
+      keyboard?.off('keydown-THREE', greatEnding)
       keyboard?.off('keydown-N', next)
       keyboard?.off('keydown-B', previous)
       keyboard?.off('keydown-G', toggleSheet)

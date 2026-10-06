@@ -1,11 +1,19 @@
 import Phaser from 'phaser'
 import { PlateButton } from './PlateButton'
 
-const BUTTON_Y = 640
-const BUTTON_HEIGHT = 58
-const ADJUST = { x: 530, width: 200 }
-const DELIVER = { x: 750, width: 200 }
-const NEXT = { x: 640, width: 260 }
+// Bottom-right corner of the counter's front face (it is y 649..720, below the seam with the counter top):
+// right-aligned with a 32 px margin and 24 px above the bottom edge of the screen. "Deliver" is the
+// main button, "Adjust" is directly to its left, bottoms on the same line.
+// The dropper-bottle tray on the right is above the seam, so it stays clear.
+const RIGHT_EDGE = 1280 - 32
+const BOTTOM_EDGE = 720 - 24
+const GAP = 14
+// Adjust and Deliver are the same size; Deliver is the main button, so its plate is golden and its label bold
+const BUTTON = { width: 180, height: 44, fontSize: 22 }
+const MAIN = { accent: 0xffe2a8, boldLabel: true } // the main button's look: a warm golden plate
+const NEXT = { width: 220, height: 44, fontSize: 22 } // "Next customer" takes the place of "Deliver"
+const centerX = (width: number, rightEdge: number) => rightEdge - width / 2
+const centerY = (height: number) => BOTTOM_EDGE - height / 2
 
 type Callbacks = { onAdjust: () => void; onDeliver: () => void; onNext: () => void }
 
@@ -19,10 +27,9 @@ export class ReactView {
 
   constructor(scene: Phaser.Scene, callbacks: Callbacks) {
     this.root = scene.add.container(0, 0)
-    const h = BUTTON_HEIGHT
-    this.adjustButton = new PlateButton(scene, ADJUST.x, BUTTON_Y, { label: 'Adjust', width: ADJUST.width, height: h, onClick: callbacks.onAdjust })
-    this.deliverButton = new PlateButton(scene, DELIVER.x, BUTTON_Y, { label: 'Deliver', width: DELIVER.width, height: h, onClick: callbacks.onDeliver })
-    this.nextButton = new PlateButton(scene, NEXT.x, BUTTON_Y, { label: 'Next customer', width: NEXT.width, height: h, onClick: callbacks.onNext })
+    this.deliverButton = new PlateButton(scene, centerX(BUTTON.width, RIGHT_EDGE), centerY(BUTTON.height), { label: 'Deliver', ...BUTTON, ...MAIN, onClick: callbacks.onDeliver })
+    this.adjustButton = new PlateButton(scene, centerX(BUTTON.width, RIGHT_EDGE - BUTTON.width - GAP), centerY(BUTTON.height), { label: 'Adjust', ...BUTTON, onClick: callbacks.onAdjust })
+    this.nextButton = new PlateButton(scene, centerX(NEXT.width, RIGHT_EDGE), centerY(NEXT.height), { label: 'Next customer', ...NEXT, ...MAIN, onClick: callbacks.onNext })
     this.root.add([this.adjustButton, this.deliverButton, this.nextButton])
   }
 

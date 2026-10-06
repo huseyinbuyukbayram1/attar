@@ -152,12 +152,13 @@ export class PauseScene extends Phaser.Scene {
     this.scene.stop()
   }
 
-  // Restart (to the story, which then starts a fresh game, like "Try again" does) or the main menu:
+  // Restart (a fresh game at Day 1: ShopScene builds a new GameState when it starts) or the main menu:
   // fade to black, stop the paused game scene and start the new one
   private leave() {
     if (this.leaving || !this.confirm) return
     this.leaving = true
-    const target = this.confirm === 'restart' ? 'IntroScene' : 'TitleScene'
+    // Restart: a fresh game at Day 1 with the same difficulty, without the story (from the story itself, the story again)
+    const target = this.confirm === 'restart' ? (this.from === 'IntroScene' ? 'IntroScene' : 'ShopScene') : 'TitleScene'
     stopPausedEffects() // what was paused must not come back in the next scene
     this.tweens.add({
       targets: this.blackout,
