@@ -28,6 +28,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('mixing_flask', 'assets/bottles/mixing_flask.png')
     // The closed notebook on the counter; without it the MIX view draws a simple book in code
     this.load.image('notebook_closed', 'assets/props/notebook_closed.png')
+    // Title screen: the shop exterior (1920x1080) and the hanging sign (700x570)
+    this.load.image('title_exterior', 'assets/title/title_exterior.jpg')
+    this.load.image('title_sign', 'assets/title/title_sign.png')
     // Painted button plates (long and short for buttons and labels, round for future icon buttons)
     this.load.image('button_long', 'assets/ui/button_long.png')
     this.load.image('button_short', 'assets/ui/button_short.png')
@@ -52,7 +55,7 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     makeClearFlaskTexture(this) // see-through version of the flask picture, used by the MIX view
-    this.scene.start('IntroScene')
+    this.scene.start('TitleScene') // the title screen leads on to IntroScene
   }
 
   // Simple bar: an outline plus a fill that grows with load progress

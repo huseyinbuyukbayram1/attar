@@ -4,7 +4,7 @@
 import type Phaser from 'phaser'
 import type { TimeOfDay } from './gameState'
 
-export type SoundEvent = 'ambienceMorning' | 'ambienceEvening' | 'bottle' | 'pour' | 'mix' | 'smell' | 'deliver' | 'click'
+export type SoundEvent = 'ambienceMorning' | 'ambienceEvening' | 'bottle' | 'pour' | 'mix' | 'smell' | 'deliver' | 'click' | 'signFall'
 
 // Event -> file name inside public/assets/audio/. null = there is no matching file, so the
 // event is silent. Matched by file name; to add a sound, drop the file in the folder and write
@@ -18,7 +18,15 @@ export const SOUND_FILES: Record<SoundEvent, string | null> = {
   smell: 'smell.mp3',
   deliver: 'deliver.mp3',
   click: 'click.mp3',
+  signFall: 'sign_fall.mp3', // title screen: the sign falls. Not there yet? The loader warns and the sound is skipped.
 }
+
+// Music: looped, one file per key. null = there is no file yet, so nothing is loaded or played.
+// To add the title music, drop the file into public/assets/audio/ and write its name here.
+export type MusicKey = 'music_title'
+export const MUSIC_FILES: Record<MusicKey, string | null> = { music_title: null }
+const MUSIC_VOLUME: Record<MusicKey, number> = { music_title: 0.25 }
+const MUSIC_FADE_MS = 1500
 
 const AUDIO_FOLDER = 'assets/audio/'
 // Ambience is kept low so it never covers the effects
@@ -31,6 +39,7 @@ const VOLUME: Record<SoundEvent, number> = {
   smell: 0.5,
   deliver: 0.8,
   click: 0.4,
+  signFall: 0.7,
 }
 // The pour file is longer than the pour animation, so it is cut short while playing (the file
 // itself is not edited): it ends POUR_SOUND_MS after it starts, the last POUR_FADE_MS fading out.
@@ -48,6 +57,53 @@ export function loadSounds(scene: Phaser.Scene) {
     const file = SOUND_FILES[event]
     if (file) scene.load.audio(keyOf(event), AUDIO_FOLDER + file)
   }
+  for (const key of Object.keys(MUSIC_FILES) as MusicKey[]) {
+    const file = MUSIC_FILES[key]
+    if (file) scene.load.audio(key, AUDIO_FOLDER + file)
+  }
+}
+
+// Plays one effect from any scene, at its volume from the table above. Skipped quietly if the file is
+// missing (the loader has already warned about it). The shop uses SoundManager instead.
+// `seek` starts the sound that many seconds into the file.
+export function playEffect(scene: Phaser.Scene, event: SoundEvent, seek = 0) {
+  const key = keyOf(event)
+  if (!scene.cache.audio.exists(key)) return
+  scene.sound.play(key, { volume: VOLUME[event], seek })
+}
+
+// Starts a music loop with a fade in, and stops it with a fade out when the scene shuts down (or
+// when stopMusic is called). Nothing happens if the file is missing. The M key mutes, as in the
+// shop. Like the ambience, it waits for the browser to allow sound.
+export function playMusic(scene: Phaser.Scene, key: MusicKey): { stop: (fadeMs?: number) => void } | undefined {
+  if (!scene.cache.audio.exists(key)) return undefined
+  let sound: (Phaser.Sound.BaseSound & { volume: number }) | undefined
+  let stopped = false
+  const begin = () => {
+    if (stopped) return
+    sound = scene.sound.add(key, { loop: true, volume: 0 }) as Phaser.Sound.BaseSound & { volume: number }
+    sound.play()
+    scene.tweens.add({ targets: sound, volume: MUSIC_VOLUME[key], duration: MUSIC_FADE_MS })
+  }
+  if (scene.sound.locked) scene.sound.once('unlocked', begin)
+  else begin()
+
+  const toggleMute = () => {
+    scene.sound.mute = !scene.sound.mute
+  }
+  scene.input.keyboard?.on(MUTE_KEY, toggleMute)
+
+  const stop = (fadeMs = MUSIC_FADE_MS) => {
+    if (stopped) return
+    stopped = true
+    scene.input.keyboard?.off(MUTE_KEY, toggleMute)
+    const ending = sound
+    if (!ending) return
+    scene.tweens.killTweensOf(ending)
+    scene.tweens.add({ targets: ending, volume: 0, duration: fadeMs, onComplete: () => ending.destroy() })
+  }
+  scene.events.once('shutdown', () => stop(0))
+  return { stop }
 }
 
 // Plays effects and the two looping ambiences. A file that is missing or failed to load is
