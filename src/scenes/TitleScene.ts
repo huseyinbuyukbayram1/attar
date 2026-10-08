@@ -1,8 +1,10 @@
 import Phaser from 'phaser'
 import { playEffect, playMusic } from '../game/audio'
+import { getDifficulty, hasChosenDifficulty, setDifficulty } from '../game/difficulty'
 import { PlateButton } from './ui/PlateButton'
 import { DifficultyPanel } from './ui/DifficultyPanel'
 import { SettingsPanel } from './ui/SettingsPanel'
+import { StartConfirmPanel } from './ui/StartConfirmPanel'
 import { addLabelPlate, LOGO_FONT, LOGO_LETTER_SPACING, TEXT_COLOR } from './ui/theme'
 
 // ---- Title screen: tuning constants (positions in 1280x720 canvas px) ----
@@ -49,22 +51,28 @@ const SWING = { degrees: 4, ms: 2000, cycles: 3 } // damped: shrinks to 0
 const IDLE_SWAY = { degrees: 0.6, ms: 5000 } // one full back and forth
 
 // Left side, right under the big sign (its board ends at y 272), left of the plant pot (x 350..460, y 430..570): they span x 85..335
-const BUTTONS = { x: 210, firstY: 340, gap: 80, width: 250, height: 58, delayMs: 300, fadeMs: 400, slide: 20 }
+// Play, Difficulty, Settings
+// (the Difficulty button's label shows the difficulty in force: "Difficulty: Normal")
+const BUTTONS = { x: 210, firstY: 340, gap: 80, width: 270, height: 58, delayMs: 300, fadeMs: 400, slide: 20 }
 // Play: "the sign falls". The buttons fade, the sign strains, the chains snap and it falls to the
 // cobblestones, bounces a little, and after a pause the screen fades to black.
 const PLAY_BUTTONS_FADE_MS = 150
 const SIGN_STRAIN = { degrees: 1.5, shakes: 5, ms: 350 }
 const SIGN_FALL = {
-  degrees: -10, // negative = leans so that its bottom swings to the right; 8 to 12 degrees
+  degrees: 14, // positive = it lands leaning clockwise (the side that dropped first is lower); 8 to 15 degrees
   boardBottomY: 690, // where the bottom of the board ends up (the cobblestones)
   ms: 600,
   ease: 'Quad.easeIn', // accelerating, like gravity
 }
-// The chains snap: the sign picture is cut into two parts along a horizontal line that crosses both
-// chains cleanly, above the brass rings (the chains run from row 18 to about row 125, so row 72 is
-// about half way). The top part stays up and swings, the rest falls. Picture px.
-const CHAIN_CUT = { row: 72, leftX: 133, rightX: 566 } // where the cut crosses the left and the right chain
-const CHAIN_TOP_SWING = { degrees: 10, ms: 1500, cycles: 3 } // damped to 0, around the top edge of the screen
+// The chains snap one after the other. The sign picture is cut into three kinds of parts: the BODY (the brass rings and
+// the board, from CHAIN_CUT.row down), and the two CHAINS above it (left and right, one image each). The cut is just above
+// the rings, so the falling sign carries no chain pieces. Picture px (the picture is 700x570).
+const CHAIN_CUT = { row: 122, leftX: 96, rightX: 603 } // where the cut crosses the left and the right chain
+const CHAIN_TOP_ENDS = { row: 20, leftX: 157, rightX: 545 } // the upper end of each chain: a broken piece swings around it
+const CHAIN_SWING = { degrees: 10, ms: 1500, cycles: 3 } // a broken chain piece: damped to 0, around its upper end
+// After the right chain snaps the sign hangs on the left chain only, and swings around the left ring (the cut point)
+const HANG = { degrees: 20, ms: 800, cycles: 1 } // degrees: where it would settle (clockwise: the right side drops); a damped swing around that
+const TINK = { sound: 'bottle', volume: 0.35 } // a small metal sound for each snap (an existing sound, quiet)
 // Broken chain links that pop out of each cut point and fall
 const CHAIN_BITS = {
   count: { min: 3, max: 5 },
@@ -99,6 +107,7 @@ const CAT_TIP = {
 const CAT_EXTRA_Z = 2 // a click makes this many letters rise right away
 const HOLD_AFTER_IMPACT_MS = 600
 const PLAY_FADE_MS = 600 // the fade to black at the very end
+const MUSIC_FADE_OUT_MS = 1000 // the title music fades out while the sign falls
 
 // The sleeping cat's "z z Z": the cat's head is at about x 561..617, y 492..540 (measured on the
 // background); the letters start just above and right of it, on the lit doorway
@@ -137,7 +146,8 @@ export class TitleScene extends Phaser.Scene {
   private built = false
   private sign!: Phaser.GameObjects.Container
   private buttons!: Phaser.GameObjects.Container
-  private chainTop?: Phaser.GameObjects.Image // the upper part of the chains, split off the big sign
+  private chainLeft?: Phaser.GameObjects.Image // the upper parts of the two chains, split off the big sign
+  private chainRight?: Phaser.GameObjects.Image
   private plateButtons: PlateButton[] = []
   private signMotion: Phaser.Tweens.Tween[] = [] // the swing and the idle sway, stopped when the sign falls
   private dust!: Phaser.GameObjects.Container
@@ -145,6 +155,8 @@ export class TitleScene extends Phaser.Scene {
   private zzzTimer?: Phaser.Time.TimerEvent
   private settingsPanel?: SettingsPanel
   private difficultyPanel?: DifficultyPanel
+  private confirmPanel?: StartConfirmPanel
+  private difficultyButton?: PlateButton // its label shows the difficulty in force
   private catZone?: Phaser.GameObjects.Zone
   private catTip?: Phaser.GameObjects.Container
   private catLineTimer?: Phaser.Time.TimerEvent // while a line from a click is showing
@@ -182,9 +194,9 @@ export class TitleScene extends Phaser.Scene {
     })
     this.input.on('pointerdown', () => this.skipIntro())
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-      if (!this.built || this.settingsPanel?.isOpen() || this.difficultyPanel?.isOpen()) return // an open panel has the keys
+      if (!this.built || this.settingsPanel?.isOpen() || this.difficultyPanel?.isOpen() || this.confirmPanel?.isOpen()) return // an open panel has the keys
       if (!this.ready) this.skipIntro()
-      else if (event.code === 'Enter' || event.code === 'Space') this.askDifficulty()
+      else if (event.code === 'Enter' || event.code === 'Space') this.onPlay()
     })
 
     // The logo font is loaded by the browser on demand: wait for it, so the text never shows in a
@@ -208,7 +220,16 @@ export class TitleScene extends Phaser.Scene {
     this.dust = this.add.container(0, 0)
     this.makeCat()
     this.settingsPanel = new SettingsPanel(this)
-    this.difficultyPanel = new DifficultyPanel(this, () => this.play()) // a pick starts the sign-fall sequence
+    // A pick in the difficulty panel only selects (and saves) it; Play starts the game
+    this.difficultyPanel = new DifficultyPanel(this, () => this.showDifficulty())
+    this.confirmPanel = new StartConfirmPanel(this, 'Start on Normal?', {
+      onYes: () => {
+        setDifficulty('normal')
+        this.showDifficulty()
+        this.play()
+      },
+      onChoose: () => this.difficultyPanel?.open(),
+    })
 
     // 1) the background has started to fade in; 2) the big sign drops in from above, then swings
     // like a pendulum
@@ -229,22 +250,25 @@ export class TitleScene extends Phaser.Scene {
 
   // The sign picture with the logo and the tagline on its board, all in one container: it swings
   // around its origin, the top centre of the sign (where the chains are held)
-  // splitChains: the picture is drawn as two parts (cut at CHAIN_CUT.row) in the same container, so it
-  // looks exactly like one picture; the upper part is kept in `chainTop` for the moment the chains snap
+  // splitChains: the picture is drawn as three parts (the body below CHAIN_CUT.row and the two chains above it) in the
+  // same container, so it looks exactly like one picture; the chains are kept for the moment they snap
   private makeSign(x: number, y: number, boardWidth: number, withTagline: boolean, strokeThickness: number, splitChains = false): Phaser.GameObjects.Container {
     const scale = signScale(boardWidth)
     const centerY = boardCenterY(boardWidth)
     const items: Phaser.GameObjects.GameObject[] = []
     if (this.textures.exists(SIGN_KEY)) {
       if (splitChains) {
-        // Both parts are the whole picture, cropped; a crop keeps the position of the whole picture, so
-        // the two parts line up exactly
+        // The parts are the whole picture, cropped; a crop keeps the position of the whole picture, so the parts
+        // line up exactly. Left and right chains are cut at x 350 (the middle of the picture), where there is nothing.
         const body = this.add.image(0, 0, SIGN_KEY).setOrigin(0.5, 0).setScale(scale)
         body.setCrop(0, CHAIN_CUT.row, body.width, body.height - CHAIN_CUT.row)
-        const top = this.add.image(0, 0, SIGN_KEY).setOrigin(0.5, 0).setScale(scale)
-        top.setCrop(0, 0, top.width, CHAIN_CUT.row)
-        this.chainTop = top
-        items.push(body, top)
+        const left = this.add.image(0, 0, SIGN_KEY).setOrigin(0.5, 0).setScale(scale)
+        left.setCrop(0, 0, SIGN_PICTURE_CENTER_X, CHAIN_CUT.row)
+        const right = this.add.image(0, 0, SIGN_KEY).setOrigin(0.5, 0).setScale(scale)
+        right.setCrop(SIGN_PICTURE_CENTER_X, 0, SIGN_PICTURE_CENTER_X, CHAIN_CUT.row)
+        this.chainLeft = left
+        this.chainRight = right
+        items.push(body, left, right)
       } else {
         items.push(this.add.image(0, 0, SIGN_KEY).setOrigin(0.5, 0).setScale(scale))
       }
@@ -286,22 +310,24 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private makeButtons(): Phaser.GameObjects.Container {
-    const play = new PlateButton(this, BUTTONS.x, BUTTONS.firstY, {
-      label: 'Play',
-      width: BUTTONS.width,
-      height: BUTTONS.height,
-      onClick: () => (this.ready ? this.askDifficulty() : this.skipIntro()), // a click during the intro only skips it
+    const button = (row: number, label: string, onClick: () => void) =>
+      new PlateButton(this, BUTTONS.x, BUTTONS.firstY + row * BUTTONS.gap, { label, width: BUTTONS.width, height: BUTTONS.height, onClick })
+    const play = button(0, 'Play', () => (this.ready ? this.onPlay() : this.skipIntro())) // a click during the intro only skips it
+    const difficulty = button(1, 'Difficulty', () => {
+      if (this.ready) this.difficultyPanel?.open()
     })
-    const settings = new PlateButton(this, BUTTONS.x, BUTTONS.firstY + BUTTONS.gap, {
-      label: 'Settings',
-      width: BUTTONS.width,
-      height: BUTTONS.height,
-      onClick: () => {
-        if (this.ready) this.settingsPanel?.open()
-      },
+    const settings = button(2, 'Settings', () => {
+      if (this.ready) this.settingsPanel?.open()
     })
-    this.plateButtons = [play, settings]
-    return this.add.container(0, 0, [play, settings])
+    this.difficultyButton = difficulty
+    this.showDifficulty()
+    this.plateButtons = [play, difficulty, settings]
+    return this.add.container(0, 0, [play, difficulty, settings])
+  }
+
+  // The Difficulty button says which difficulty Play will use
+  private showDifficulty() {
+    this.difficultyButton?.setLabel(`Difficulty: ${getDifficulty().label}`)
   }
 
   // The sign has landed: a damped pendulum swing, then the buttons appear, then the idle sway
@@ -489,9 +515,12 @@ export class TitleScene extends Phaser.Scene {
     })
   }
 
-  // Play (or Enter / Space) first asks for the difficulty; the pick starts play()
-  private askDifficulty() {
-    if (!this.leaving) this.difficultyPanel?.open()
+  // Play (or Enter / Space): starts with the saved difficulty. On the very first visit nothing is saved yet, so a small
+  // panel asks first: start on Normal, or choose.
+  private onPlay() {
+    if (this.leaving) return
+    if (hasChosenDifficulty()) this.play()
+    else this.confirmPanel?.open()
   }
 
   // The sign falls (see the constants), then the screen fades to black and the story starts.
@@ -520,17 +549,50 @@ export class TitleScene extends Phaser.Scene {
     })
   }
 
-  // 2) the chains snap and the sign falls with gravity; 3) the impact; 4) hold, then fade out
+  // 2) the chains snap, one after the other: the right one first, and the sign swings on the left one; then the left
+  // one, and the sign falls with gravity; 3) the impact; 4) hold, then fade out
   private fall() {
+    this.music?.stop(MUSIC_FADE_OUT_MS)
+    const sign = this.sign
+    const scale = signScale(SIGN.boardWidth)
+    // The ring the sign hangs on, in the sign's own coordinates, and where it is on the screen (it stays there while
+    // the sign swings around it)
+    const pivot = { x: (CHAIN_CUT.leftX - SIGN_PICTURE_CENTER_X) * scale, y: CHAIN_CUT.row * scale }
+    sign.setRotation(0)
+    const pivotOnScreen = { x: sign.x + pivot.x, y: sign.y + pivot.y }
+    this.snapChain(1)
+
+    const swing = { t: 0 }
+    this.tweens.add({
+      targets: swing,
+      t: 1,
+      duration: HANG.ms,
+      onUpdate: () => {
+        // A damped swing around the settling angle, starting upright: it drops, overshoots and comes back
+        const angle = Phaser.Math.DegToRad(HANG.degrees) * (1 - Math.cos(swing.t * Math.PI * 2 * HANG.cycles) * (1 - 0.5 * swing.t))
+        const cos = Math.cos(angle)
+        const sin = Math.sin(angle)
+        sign.setRotation(angle)
+        sign.setPosition(pivotOnScreen.x - (pivot.x * cos - pivot.y * sin), pivotOnScreen.y - (pivot.x * sin + pivot.y * cos))
+      },
+      onComplete: () => {
+        this.snapChain(-1)
+        this.drop()
+      },
+    })
+  }
+
+  // The sign falls from where it is: gravity, and a turn to the angle it lands at
+  private drop() {
     const angle = Phaser.Math.DegToRad(SIGN_FALL.degrees)
     const scale = signScale(SIGN.boardWidth)
     const boardBottom = SIGN_PICTURE_BOARD_BOTTOM * scale // from the sign's origin (the top centre)
     // Turned around the origin, the bottom of the board is boardBottom * cos(angle) lower and
     // boardBottom * -sin(angle) to the right
     const restY = SIGN_FALL.boardBottomY - boardBottom * Math.cos(angle)
-    this.snapChains()
     this.tweens.add({
       targets: this.sign,
+      x: SIGN.x,
       y: restY,
       rotation: angle,
       duration: SIGN_FALL.ms,
@@ -539,35 +601,37 @@ export class TitleScene extends Phaser.Scene {
     })
   }
 
-  // The chains snap: the upper part leaves the sign, stays at the top of the screen and swings like a
-  // pendulum; broken links fly out of the two cut points. (Called at the moment the fall starts.)
-  private snapChains() {
-    const top = this.chainTop
-    if (!top) return
+  // One chain snaps (-1 left, 1 right): its upper piece leaves the sign, stays where it hangs and swings like a pendulum
+  // around its upper end, a few broken links fly out of the cut, and there is a small metal sound.
+  private snapChain(side: -1 | 1) {
+    const piece = side < 0 ? this.chainLeft : this.chainRight
+    if (!piece) return
     const sign = this.sign
     const scale = signScale(SIGN.boardWidth)
-    // Take it out of the container, keeping its place on the screen (same position, turn and scale)
-    sign.remove(top)
-    this.add.existing(top)
-    top.setPosition(sign.x, sign.y).setRotation(sign.rotation)
+    const topX = side < 0 ? CHAIN_TOP_ENDS.leftX : CHAIN_TOP_ENDS.rightX
+    // Take it out of the container, and make its upper end the point it turns around (origin), without moving it
+    sign.remove(piece)
+    this.add.existing(piece)
+    piece.setOrigin(topX / piece.width, CHAIN_TOP_ENDS.row / piece.height)
+    // (at the sign's resting place: by the second snap the sign has swung away from it)
+    piece.setPosition(SIGN.x + (topX - SIGN_PICTURE_CENTER_X) * scale, signRestY(SIGN.boardWidth) + CHAIN_TOP_ENDS.row * scale)
 
     const swing = { t: 0 }
     this.tweens.add({
       targets: swing,
       t: 1,
-      duration: CHAIN_TOP_SWING.ms,
-      onUpdate: () => top.setRotation(Phaser.Math.DegToRad(CHAIN_TOP_SWING.degrees) * (1 - swing.t) * Math.sin(swing.t * Math.PI * 2 * CHAIN_TOP_SWING.cycles)),
-      onComplete: () => top.setRotation(0),
+      duration: CHAIN_SWING.ms,
+      onUpdate: () => piece.setRotation(Phaser.Math.DegToRad(CHAIN_SWING.degrees) * side * (1 - swing.t) * Math.sin(swing.t * Math.PI * 2 * CHAIN_SWING.cycles)),
+      onComplete: () => piece.setRotation(0),
     })
 
-    // The two cut points on the screen (the sign is upright, apart from a tiny turn)
+    // The cut point on the screen, turned with the sign
     const cos = Math.cos(sign.rotation)
     const sin = Math.sin(sign.rotation)
-    for (const side of [-1, 1] as const) {
-      const localX = ((side < 0 ? CHAIN_CUT.leftX : CHAIN_CUT.rightX) - SIGN_PICTURE_CENTER_X) * scale
-      const localY = CHAIN_CUT.row * scale
-      this.breakLinks(sign.x + localX * cos - localY * sin, sign.y + localX * sin + localY * cos, side)
-    }
+    const localX = ((side < 0 ? CHAIN_CUT.leftX : CHAIN_CUT.rightX) - SIGN_PICTURE_CENTER_X) * scale
+    const localY = CHAIN_CUT.row * scale
+    this.breakLinks(sign.x + localX * cos - localY * sin, sign.y + localX * sin + localY * cos, side)
+    playEffect(this, TINK.sound as 'bottle', 0, TINK.volume)
   }
 
   // A few small dark-grey links that pop out of (x, y), away from the middle (`side`), and fall

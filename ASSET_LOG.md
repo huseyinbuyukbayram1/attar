@@ -47,22 +47,51 @@ The title screen logo uses Cinzel Decorative Bold (public/assets/fonts/CinzelDec
 
 ## Audio credits
 
-All sound effects and ambience loops come from Pixabay (pixabay.com), used under the Pixabay Content License (commercial use, no attribution required). Per-file page links: TODO (optional).
+All sound effects, ambience loops and music come from Pixabay (pixabay.com), used under the Pixabay Content License (no attribution required).
 
-| file | event |
-| --- | --- |
-| ambience_morning.mp3 | ambienceMorning (loop) |
-| ambience_evening.mp3 | ambienceEvening (loop) |
-| bottle.mp3 | bottle |
-| pour.mp3 | pour |
-| mix.mp3 | mix |
-| smell.mp3 | smell |
-| deliver.mp3 | deliver |
-| click.mp3 | click |
-| sign_fall.mp3 | signFall (title screen: the sign falls) |
-| coin.mp3 | coin (a coin lands in the cash box; optional: without the file a quiet click plays instead; not in public/assets/audio/ yet) |
+Compression: the four music files were re-encoded with ffmpeg (the `ffmpeg-static` npm package) to MP3, stereo, 44.1 kHz, at 128 kbps, or 96 kbps where that was still over 3 MB. The originals are kept in assets_raw/audio_original/. Several sound effects were also trimmed or edited (mp3cut.net, Audacity).
 
-sign_fall.mp3: Pixabay, licence: Pixabay Content License, link TODO. The file is not in public/assets/audio/ yet; until it is added the game warns once at start and plays no sound for it.
+| file | event | source (artist, title, Pixabay ID) | note |
+| --- | --- | --- | --- |
+| ambience_morning.mp3 | ambienceMorning (loop) | freesound_community, "Birds in the Morning", Pixabay, ID 53615 |  |
+| ambience_evening.mp3 | ambienceEvening (loop) | see the list "Audio credits (all files)" below; which source became which file was not recorded | Sources used for the evening ambience: "Evening Sound Effect in Village", "Countryside Ambience Night Nearby Road". |
+| bottle.mp3 | bottle | freesound_community, "Bottle Clink", Pixabay, ID 101000 |  |
+| pour.mp3 | pour | universfield, "Pouring Water into Glass", Pixabay, ID 116975 |  |
+| mix.mp3 | mix | see the list "Audio credits (all files)" below; which source became which file was not recorded | Possibly "Glitter Sparkle". |
+| smell.mp3 | smell | freesound_community, "Sniffing", Pixabay, ID 40300 |  |
+| deliver.mp3 | deliver | see the list "Audio credits (all files)" below; which source became which file was not recorded | Possibly "Register Cha-Ching". |
+| click.mp3 | click | vadim_makes_sound, "Soft App Button Tap Sound 5", Pixabay, ID 547873 |  |
+| sign_fall.mp3 | signFall (title screen: the sign falls) | alexzavesa, "Boards Fall 2", Pixabay, ID 468368 |  |
+| coin.mp3 | sfx_coin (a coin lands in the cash box) | freesound_gamestudio, "Drop Coin", Pixabay, ID 384921 |  |
+| footsteps.mp3 | sfx_footsteps (the walk between the counter and the customer; only its first 1.5 s are played) | freesound_community, "Footsteps on Wooden Flooring", Pixabay, ID 6878 |  |
+| title_music.mp3 | music_title (title screen, loops) | djovan, "Sahara Sunset - Oriental Relax Ambiance (Desert Flute)", Pixabay, ID not recorded | Re-encoded: 7.5 MB -> 2.8 MB (MP3 96 kbps stereo, 44.1 kHz). Original: assets_raw/audio_original/title_music.mp3. |
+| ending_lose.mp3 | music_ending_lose (ending, loops) | ashot_danielyan, "Sad Duduk - Middle Eastern Ambient Soundtrack", Pixabay, ID not recorded | Re-encoded: 7.6 MB -> 2.8 MB (MP3 96 kbps stereo, 44.1 kHz). Original: assets_raw/audio_original/ending_lose.mp3. |
+| ending_win.mp3 | music_ending_win (ending, loops) | 38326398, "Mach Piano", Pixabay, ID 301972 | Re-encoded: 3.1 MB -> 1.5 MB (MP3 128 kbps stereo, 44.1 kHz). Original: assets_raw/audio_original/ending_win.mp3. |
+| ending_greatwin.mp3 | music_ending_greatwin (ending, loops) | soundsbyamelia, "Ancient Egyptian Celebration (Oud, Ney)", Pixabay, ID not recorded | Re-encoded: 3.8 MB -> 1.9 MB (MP3 128 kbps stereo, 44.1 kHz). Original: assets_raw/audio_original/ending_greatwin.mp3. |
+
+## Audio credits (all files)
+
+Every Pixabay source used in the game, all under the Pixabay Content License (no attribution required). Several sounds were trimmed or edited (mp3cut.net, Audacity), and the music was re-encoded for size.
+
+| artist | title | Pixabay ID | used for |
+| --- | --- | --- | --- |
+| djovan | Sahara Sunset - Oriental Relax Ambiance (Desert Flute) | not recorded | title music |
+| 38326398 | Mach Piano | 301972 | ending music (win) |
+| ashot_danielyan | Sad Duduk - Middle Eastern Ambient Soundtrack | not recorded | ending music (lose) |
+| soundsbyamelia | Ancient Egyptian Celebration (Oud, Ney) | not recorded | ending music (great win) |
+| freesound_community | Footsteps on Wooden Flooring | 6878 | footsteps |
+| freesound_gamestudio | Drop Coin | 384921 | coin |
+| alexzavesa | Boards Fall 2 | 468368 | sign fall |
+| freesound_community | Sniffing | 40300 | smell |
+| universfield | Pouring Water into Glass | 116975 | pour |
+| freesound_community | Bottle Clink | 101000 | bottle |
+| vadim_makes_sound | Soft App Button Tap Sound 5 | 547873 | click |
+| freesound_community | Birds in the Morning | 53615 | morning ambience |
+| scratchonix | Glitter Sparkle | 423283 | mix / deliver sounds (exact file not recorded) |
+| dragon-studio | Register Cha-Ching | 376896 | mix / deliver sounds (exact file not recorded) |
+| subhamita | Evening Sound Effect in Village | 348670 | evening ambience |
+| alex_jauk | Countryside Ambience Night Nearby Road | 234023 | evening ambience |
+
 - [ ] Pour stream must start exactly at the bottle mouth for round and square bottles (droppers are fine): compute the mouth point per texture and rotate it with the tilt.
 - [ ] Idea: open the cork or lid of round and square bottles during a pour (separate stopper sprite cropped from the texture, lifts away and returns).
 - [ ] Rework how the chosen drops are shown (the six slot circles): current look and position feel poor, decide later.

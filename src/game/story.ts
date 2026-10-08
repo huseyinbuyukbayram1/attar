@@ -5,12 +5,11 @@ import { goldCoins } from './economy'
 
 // The story before the first customer, one page at a time
 export const INTRO_PAGES: string[] = [
-  'For forty years, Rıza Efendi mixed perfumes in this little shop behind the Spice Bazaar. People said he could bottle a memory.',
-  'He was your grandfather. When you were small, you sat on this counter while he let you smell rose, oud and amber, one drop at a time.',
-  'Last week, he passed away. He left you the shop, his old cat Misk, and the notebook where he wrote down every scent he ever knew.',
-  'He also left a debt. The shop owes {debt}, and the lender will come in five days.',
-  "The customers still come. They don't ask for a perfume by name. They ask for a feeling, a place, a memory.",
-  "Open the notebook. Listen to them. Let them smell. And keep your grandfather's door open.",
+  'For forty years, Rıza Efendi mixed perfumes in this narrow shop behind the Spice Bazaar. Sailors, brides and old pashas all came through his door, each asking for something they could not name. People said he could bottle a memory, and he never once argued with them.',
+  'He was your grandfather. When you were small, you sat on this very counter while he held a bottle under your nose — rose, then oud, then amber, one drop at a time. "Don\'t look at the bottles," he would say. "Close your eyes and remember."',
+  'Last week, he passed away in his sleep. He left you the shop, his old orange cat Misk, and a worn leather notebook. Inside, in his careful hand, is every scent he ever knew.',
+  'He also left a debt. The shop owes {debt}, and the lender will come back in five days. Sell enough perfume by then and the door stays open. Fail, and his shop becomes someone else\'s.',
+  "The customers still come. They don't ask for a perfume by name — they ask for a feeling, a place, a moment they lost. Open the notebook, listen carefully, and keep your grandfather's door open.",
 ]
 
 export const WIN_PAGE =

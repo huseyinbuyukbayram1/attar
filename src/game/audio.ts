@@ -5,7 +5,7 @@ import type Phaser from 'phaser'
 import type { TimeOfDay } from './gameState'
 import { getMusicDuck, getSettings, onSettingsChange, updateSettings } from './settings'
 
-export type SoundEvent = 'ambienceMorning' | 'ambienceEvening' | 'bottle' | 'pour' | 'mix' | 'smell' | 'deliver' | 'click' | 'signFall' | 'coin'
+export type SoundEvent = 'ambienceMorning' | 'ambienceEvening' | 'bottle' | 'pour' | 'mix' | 'smell' | 'deliver' | 'click' | 'signFall' | 'coin' | 'footsteps'
 
 // Event -> file name inside public/assets/audio/. null = there is no matching file, so the
 // event is silent. Matched by file name; to add a sound, drop the file in the folder and write
@@ -19,15 +19,21 @@ export const SOUND_FILES: Record<SoundEvent, string | null> = {
   smell: 'smell.mp3',
   deliver: 'deliver.mp3',
   click: 'click.mp3',
+  footsteps: 'footsteps.mp3', // the walk between the counter and the customer (only its first seconds are played)
   coin: 'coin.mp3', // a coin lands in the cash box. Not there yet? The delivery plays a quiet click instead.
   signFall: 'sign_fall.mp3', // title screen: the sign falls. Not there yet? The loader warns and the sound is skipped.
 }
 
 // Music: looped, one file per key. null = there is no file yet, so nothing is loaded or played.
 // To add the title music, drop the file into public/assets/audio/ and write its name here.
-export type MusicKey = 'music_title'
-export const MUSIC_FILES: Record<MusicKey, string | null> = { music_title: null }
-const MUSIC_VOLUME: Record<MusicKey, number> = { music_title: 0.25 }
+export type MusicKey = 'music_title' | 'music_ending_lose' | 'music_ending_win' | 'music_ending_greatwin'
+export const MUSIC_FILES: Record<MusicKey, string | null> = {
+  music_title: 'title_music.mp3',
+  music_ending_lose: 'ending_lose.mp3',
+  music_ending_win: 'ending_win.mp3',
+  music_ending_greatwin: 'ending_greatwin.mp3',
+}
+const MUSIC_VOLUME: Record<MusicKey, number> = { music_title: 0.25, music_ending_lose: 0.25, music_ending_win: 0.25, music_ending_greatwin: 0.25 }
 const MUSIC_FADE_MS = 1500
 
 const AUDIO_FOLDER = 'assets/audio/'
@@ -43,11 +49,13 @@ const VOLUME: Record<SoundEvent, number> = {
   click: 0.4,
   signFall: 0.7,
   coin: 0.5,
+  footsteps: 0.5,
 }
 // The pour file is longer than the pour animation, so it is cut short while playing (the file
 // itself is not edited): it ends POUR_SOUND_MS after it starts, the last POUR_FADE_MS fading out.
 const POUR_SOUND_MS = 550
 const POUR_FADE_MS = 150
+const SKIP_FADE_MS = 120 // a sound cut short by a click fades out this fast
 const AMBIENCE_FADE_MS = 1500 // same as the morning/evening crossfade of the picture
 const MUTE_KEY = 'keydown-M'
 
@@ -71,7 +79,8 @@ export function toggleMute(scene: Phaser.Scene) {
 }
 
 const EVENTS = Object.keys(SOUND_FILES) as SoundEvent[]
-const keyOf = (event: SoundEvent) => `sound_${event}`
+// The loaded sound's key: sfx_bottle, sfx_coin, sfx_footsteps ...
+const keyOf = (event: SoundEvent) => `sfx_${event}`
 
 // Called from BootScene.preload: loads only the events that have a file
 export function loadSounds(scene: Phaser.Scene) {
@@ -88,8 +97,8 @@ export function loadSounds(scene: Phaser.Scene) {
 // Plays one effect from any scene, at its volume from the table above. Skipped quietly if the file is
 // missing (the loader has already warned about it). The shop uses SoundManager instead.
 // `seek` starts the sound that many seconds into the file.
-export function playEffect(scene: Phaser.Scene, event: SoundEvent, seek = 0) {
-  startEffect(scene, event, effectiveVolume(event), seek)
+export function playEffect(scene: Phaser.Scene, event: SoundEvent, seek = 0, volumeScale = 1) {
+  startEffect(scene, event, effectiveVolume(event) * volumeScale, seek)
 }
 
 // Every effect that is playing, with its event. The pause menu pauses exactly these (music and
@@ -99,7 +108,7 @@ const effectSounds = new Map<Effect, SoundEvent>()
 let pausedEffects: Effect[] = [] // the ones the pause menu stopped, so that it can resume exactly those
 
 // Starts one effect and keeps track of it. Returns undefined if the file is missing.
-function startEffect(scene: Phaser.Scene, event: SoundEvent, volume: number, seek = 0): Effect | undefined {
+function startEffect(scene: Phaser.Scene, event: SoundEvent, volume: number, seek = 0, rate = 1): Effect | undefined {
   const key = keyOf(event)
   if (!scene.cache.audio.exists(key)) return undefined
   const sound = scene.sound.add(key, { volume }) as Effect
@@ -110,7 +119,7 @@ function startEffect(scene: Phaser.Scene, event: SoundEvent, volume: number, see
     sound.destroy()
   })
   sound.once('destroy', forget)
-  sound.play({ seek })
+  sound.play({ seek, rate })
   return sound
 }
 
@@ -141,15 +150,17 @@ export function stopPausedEffects() {
 // Starts a music loop with a fade in, and stops it with a fade out when the scene shuts down (or
 // when stopMusic is called). Nothing happens if the file is missing. The M key mutes, as in the
 // shop. Like the ambience, it waits for the browser to allow sound.
-export function playMusic(scene: Phaser.Scene, key: MusicKey): { stop: (fadeMs?: number) => void } | undefined {
+// `ignoreDuck`: the music keeps its volume when everything else is turned down (the ending preview plays over a paused scene)
+export function playMusic(scene: Phaser.Scene, key: MusicKey, ignoreDuck = false): { stop: (fadeMs?: number) => void } | undefined {
   if (!scene.cache.audio.exists(key)) return undefined
   let sound: (Phaser.Sound.BaseSound & { volume: number }) | undefined
   let stopped = false
+  const volume = () => MUSIC_VOLUME[key] * (ignoreDuck ? getSettings().master * getSettings().music : groupGain('music'))
   const begin = () => {
     if (stopped) return
     sound = scene.sound.add(key, { loop: true, volume: 0 }) as Phaser.Sound.BaseSound & { volume: number }
     sound.play()
-    scene.tweens.add({ targets: sound, volume: MUSIC_VOLUME[key] * groupGain('music'), duration: MUSIC_FADE_MS })
+    scene.tweens.add({ targets: sound, volume: volume(), duration: MUSIC_FADE_MS })
   }
   if (scene.sound.locked) scene.sound.once('unlocked', begin)
   else begin()
@@ -160,7 +171,7 @@ export function playMusic(scene: Phaser.Scene, key: MusicKey): { stop: (fadeMs?:
   const stopListening = onSettingsChange(() => {
     if (!sound) return
     scene.tweens.killTweensOf(sound)
-    sound.volume = MUSIC_VOLUME[key] * groupGain('music')
+    sound.volume = volume()
   })
 
   const stop = (fadeMs = MUSIC_FADE_MS) => {
@@ -172,6 +183,7 @@ export function playMusic(scene: Phaser.Scene, key: MusicKey): { stop: (fadeMs?:
     if (!ending) return
     scene.tweens.killTweensOf(ending)
     scene.tweens.add({ targets: ending, volume: 0, duration: fadeMs, onComplete: () => ending.destroy() })
+    scene.events.once('shutdown', () => ending.destroy()) // the fade stops with the scene, so the sound must not be left playing
   }
   scene.events.once('shutdown', () => stop(0))
   return { stop }
@@ -234,14 +246,33 @@ export class SoundManager {
   }
 
   // `volumeScale` makes this one play quieter than its normal volume (1 = normal)
-  play(event: SoundEvent, volumeScale = 1) {
+  // `rate` plays it faster or slower (and higher or lower): 1 = normal
+  play(event: SoundEvent, volumeScale = 1, rate = 1) {
     const key = keyOf(event)
     if (!this.scene.cache.audio.exists(key)) return
     if (event === 'pour') {
       this.playCutShort(effectiveVolume(event) * volumeScale)
       return
     }
-    startEffect(this.scene, event, effectiveVolume(event) * volumeScale)
+    startEffect(this.scene, event, effectiveVolume(event) * volumeScale, 0, rate)
+  }
+
+  // Plays a sound only for `durationMs` (the file may be much longer), fading out over the last `fadeMs`. Returns a
+  // function that ends it early with a short fade (for a skipped transition).
+  // `seek`: seconds of the file to skip at the start (a file that begins with silence)
+  playFor(event: SoundEvent, durationMs: number, fadeMs: number, seek = 0): () => void {
+    const sound = startEffect(this.scene, event, effectiveVolume(event), seek)
+    if (!sound) return () => {}
+    const fadeOut = (ms: number) => {
+      if (!sound.isPlaying) return
+      this.scene.tweens.killTweensOf(sound)
+      this.scene.tweens.add({ targets: sound, volume: 0, duration: ms, onComplete: () => sound.destroy() })
+    }
+    const timer = this.scene.time.delayedCall(durationMs - fadeMs, () => fadeOut(fadeMs))
+    return () => {
+      timer.remove()
+      fadeOut(SKIP_FADE_MS)
+    }
   }
 
   // Plays a sound, fades it out at the end of POUR_SOUND_MS and removes it

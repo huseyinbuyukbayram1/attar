@@ -41,6 +41,15 @@ export function getDifficulty(): Difficulty {
   return DIFFICULTIES[current]
 }
 
+// True if the player has picked a difficulty before (it is saved), false on the very first visit
+export function hasChosenDifficulty(): boolean {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 // Remembers the choice; the next game uses it
 export function setDifficulty(id: DifficultyId) {
   current = id

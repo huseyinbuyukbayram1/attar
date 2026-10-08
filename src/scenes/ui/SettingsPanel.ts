@@ -3,7 +3,7 @@ import { playEffect, toggleMute } from '../../game/audio'
 import { previewMoney } from '../../game/endingPreview'
 import type { PreviewEnding } from '../../game/endingPreview'
 import { getDifficulty } from '../../game/difficulty'
-import { getSettings, onSettingsChange, updateSettings } from '../../game/settings'
+import { getMusicDuck, getSettings, onSettingsChange, setMusicDuck, updateSettings } from '../../game/settings'
 import { resetTutorial } from '../../game/tutorial'
 import { PlateButton, PlatePanel } from './PlateButton'
 import { Slider } from './Slider'
@@ -329,7 +329,9 @@ export class SettingsPanel {
   // screen or the pause menu, with the paused game below it) stands still meanwhile; nothing of the run changes.
   private preview(ending: PreviewEnding) {
     const from = this.scene.scene.key
-    this.scene.scene.launch('EndingScene', { money: previewMoney(ending, getDifficulty()), preview: { from } })
+    const restoreDuck = getMusicDuck()
+    setMusicDuck(0) // the music and ambience below go silent while the ending's own music plays; Back restores them
+    this.scene.scene.launch('EndingScene', { money: previewMoney(ending, getDifficulty()), preview: { from, restoreDuck } })
     this.scene.scene.pause()
   }
 

@@ -19,7 +19,7 @@ import { addCounterCrop } from './ui/counterCrop'
 import { addCounterDarken } from './ui/counterBand'
 import { ContactSheet } from './ui/ContactSheet'
 import { DayCard } from './ui/DayCard'
-import { EVENING_FADE_MS, EveningOverlay } from './ui/EveningOverlay'
+import { EveningOverlay } from './ui/EveningOverlay'
 import { MixEvening } from './ui/MixEvening'
 import { MixLights } from './ui/MixLights'
 import { FINAL_MIX_ENABLED } from './ui/mixAnimation'
@@ -37,6 +37,15 @@ const PAUSE_MS = 300 // a beat of empty shop before the next customer walks in
 const SPEECH_FADE_MS = 250 // the speech box fades in once the customer has arrived
 const BUTTON_FADE_MS = 250 // then the "Make perfume" button
 const COIN_FALLBACK_VOLUME = 0.5 // without a coin sound the click plays, this much quieter
+const COIN_RATE = { min: 0.95, max: 1.08 } // every coin sound is a little higher or lower
+// The walk between the counter and the customer: a fade to dark, the footsteps (only the first part of the file, fading
+// out at the end), and a fade back. A click skips the rest of it.
+const FOOTSTEPS_SEEK = 1.1 // seconds: footsteps.mp3 begins with 1.13 s of silence (measured), the first step is right after
+const FOOTSTEPS_DURATION_MS = 1500 // the way back to the customer
+const FOOTSTEPS_SHORT_DURATION_MS = 700 // the way to the counter: shorter
+type Walk = { fadeMs: number; durationMs: number; fadeOutMs: number } // fadeMs: to dark, and the same back; fadeOutMs: the sound at its end
+const WALK_TO_CUSTOMER: Walk = { fadeMs: 250, durationMs: FOOTSTEPS_DURATION_MS, fadeOutMs: 300 }
+const WALK_TO_COUNTER: Walk = { fadeMs: 150, durationMs: FOOTSTEPS_SHORT_DURATION_MS, fadeOutMs: 200 }
 const PRACTICE_FADE_MS = 500 // the shop fades in from dark when the practice starts, and out when it is skipped
 const COUNTER_TOP_Y = 578 // in canvas pixels: the counter's top edge; everything from here down is drawn in front of the customer
 // TEMP: remove before release (also the marked code in create() and showCustomerAtOnce())
@@ -173,9 +182,10 @@ export class ShopScene extends Phaser.Scene {
       this.events.off('resume', onResume)
     })
     this.mixView = new MixView(this, this.state, {
-      onSmell: () => this.goTo('react', () => this.enterReact()),
+      // Nothing of the REACT screen starts until the screen has faded back in: the hint, the smell sound and the buttons come then
+      onSmell: () => this.goTo('react', () => this.prepareReact(), () => this.enterReact()),
       // Out of smells: deliver straight from the counter, into the same result view
-      onDeliver: () => this.goTo('react', () => this.deliver()),
+      onDeliver: () => this.goTo('react', () => this.reactView.hideButtons(), () => this.deliver()), // the delivery starts when the screen is back
       onSound: (event) => this.sounds.play(event),
       isSceneBusy: () => this.busy || (this.tutorial?.blocksNotebook() ?? false), // the tutorial lets the notebook open only in its notebook step
       onTutorial: (event) => this.tutorial?.notify(event),
@@ -292,8 +302,12 @@ export class ShopScene extends Phaser.Scene {
         cardTitle,
       )
     } else {
-      this.prepareCustomer(false)
-      this.time.delayedCall(EVENING_FADE_MS + PAUSE_MS, () => this.enterCustomer())
+      // The second customer of the day: the player walks over, the shop changes to evening in the dark
+      this.walkTransition(
+        WALK_TO_CUSTOMER,
+        () => this.prepareCustomer(true),
+        () => this.time.delayedCall(PAUSE_MS, () => this.enterCustomer()),
+      )
     }
   }
 
@@ -352,13 +366,68 @@ export class ShopScene extends Phaser.Scene {
 
   // Fade to dark, switch what is visible, fade back in. onSwitch runs at the dark moment,
   // right after the switch, so text and buttons change without being seen.
-  private goTo(phase: Phase, onSwitch?: () => void) {
+  private goTo(phase: Phase, onSwitch?: () => void, afterIn?: () => void) {
     if (this.busy) return
     this.busy = true
     this.tutorial?.suspend() // the tutorial waits out the fade
-    this.fadeSwitch(phase, onSwitch, () => {
+    const done = () => {
       this.busy = false
+      afterIn?.() // the next phase starts only now, with the screen fully back
       this.tutorial?.sync(phase)
+    }
+    // Between the counter and the customer the player walks: footsteps, the dark stays while they go on
+    // (and a shorter one on the way to the counter)
+    const walk = this.phase === 'mix' && phase === 'react' ? WALK_TO_CUSTOMER : phase === 'mix' ? WALK_TO_COUNTER : undefined
+    if (walk) {
+      this.walkTransition(walk, () => {
+        this.applyPhase(phase)
+        onSwitch?.()
+      }, done)
+    } else {
+      this.fadeSwitch(phase, onSwitch, done)
+    }
+  }
+
+  // Fade to dark, the footsteps, fade back. onDark runs while the screen is dark (change what is visible there, nothing more),
+  // onDone only when it is fully bright again: that is when the next phase may start sounds, animations and text. The
+  // footsteps start with the fade. A click skips straight to the end: bright at once, then onDone.
+  private walkTransition(walk: Walk, onDark: () => void, onDone: () => void) {
+    const { width, height } = this.scale
+    const clicks = this.add.zone(width / 2, height / 2, width, height).setInteractive().setDepth(FADE_DEPTH - 1)
+    const stopSteps = this.sounds.playFor('footsteps', walk.durationMs, walk.fadeOutMs, FOOTSTEPS_SEEK)
+    let finished = false
+    let dark = false
+    let hold: Phaser.Time.TimerEvent | undefined
+    const goDark = () => {
+      if (dark) return
+      dark = true
+      onDark()
+    }
+    const finish = () => {
+      if (finished) return
+      finished = true
+      hold?.remove()
+      this.tweens.killTweensOf(this.fade)
+      this.fade.setAlpha(0)
+      clicks.destroy()
+      onDone()
+    }
+    clicks.on('pointerdown', () => {
+      if (finished) return
+      stopSteps()
+      goDark() // the change still has to happen (it is just not seen)
+      finish()
+    })
+    this.tweens.add({
+      targets: this.fade,
+      alpha: 1,
+      duration: walk.fadeMs,
+      onComplete: () => {
+        goDark()
+        hold = this.time.delayedCall(walk.durationMs - 2 * walk.fadeMs, () => { // dark, while the footsteps go on
+          this.tweens.add({ targets: this.fade, alpha: 0, duration: walk.fadeMs, onComplete: finish })
+        })
+      },
     })
   }
 
@@ -421,13 +490,20 @@ export class ShopScene extends Phaser.Scene {
     }
   }
 
-  // Entering REACT from MIX: the customer smells (this uses up one smell) and comments
+  // The REACT screen, still in the dark: only what is visible changes. No text, no buttons, no sound yet.
+  private prepareReact() {
+    this.speech.setAlpha(0)
+    this.reactView.hideButtons()
+  }
+
+  // Entering REACT from MIX, once the screen is back: the customer smells (this uses up one smell) and comments
   private enterReact() {
     const { state } = this
     this.sounds.play('smell')
     state.useSmell()
     const hint = hintFor(mixScent(state.drops), state.order.target)
     this.speech.setText(hint)
+    this.speech.fadeIn(SPEECH_FADE_MS, () => {})
     this.mixView.setHint(hint) // so the counter screen can show it too
     this.reactView.showChoices()
   }
@@ -460,7 +536,7 @@ export class ShopScene extends Phaser.Scene {
       refused: !practice && delivery.kind === 'refused',
       payout,
       onPour: () => this.sounds.play('pour'),
-      onCoinSound: () => (this.sounds.has('coin') ? this.sounds.play('coin') : this.sounds.play('click', COIN_FALLBACK_VOLUME)),
+      onCoinSound: () => (this.sounds.has('coin') ? this.sounds.play('coin', 1, Phaser.Math.FloatBetween(COIN_RATE.min, COIN_RATE.max)) : this.sounds.play('click', COIN_FALLBACK_VOLUME)),
       onResult: () => {
         if (practice) {
           this.sounds.play('deliver')

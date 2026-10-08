@@ -1,4 +1,7 @@
 import Phaser from 'phaser'
+import { playMusic } from '../game/audio'
+import type { MusicKey } from '../game/audio'
+import { setMusicDuck } from '../game/settings'
 import { getDifficulty } from '../game/difficulty'
 import { formatCoins } from '../game/economy'
 import { CoinAmount } from './ui/CoinAmount'
@@ -54,6 +57,7 @@ const LOSE_SIGN = {
 
 type Ending = 'lose' | 'win' | 'great'
 const PICTURES: Record<Ending, string> = { lose: 'ending_lose', win: 'ending_win', great: 'ending_greatwin' }
+const MUSIC: Record<Ending, MusicKey> = { lose: 'music_ending_lose', win: 'music_ending_win', great: 'music_ending_greatwin' }
 
 // Shown after the last customer: the story ends one way or the other (src/game/story.ts), depending on
 // the money earned and the difficulty chosen: lose, win, or great win (a single page of its own). The
@@ -67,14 +71,15 @@ export class EndingScene extends Phaser.Scene {
   private panel!: StoryPanel
   // Set when the ending is only looked at (Settings > Extras > View endings): it runs on top of the paused
   // scene it came from (`from`), changes nothing of the run, and its only button goes back there
-  private preview?: { from: string }
+  private preview?: { from: string; restoreDuck: number } // restoreDuck: how loud the music of the scene below was
+  private music?: { stop: (fadeMs?: number) => void }
 
   constructor() {
     super('EndingScene')
   }
 
   // Phaser hands over whatever ShopScene passed to scene.start
-  init(data: { money: number; preview?: { from: string } }) {
+  init(data: { money: number; preview?: { from: string; restoreDuck: number } }) {
     this.money = data.money
     this.preview = data.preview
   }
@@ -88,6 +93,9 @@ export class EndingScene extends Phaser.Scene {
     this.leaving = false
 
     if (this.preview) this.scene.bringToTop() // the pause menu is registered after this scene, so it would be drawn above
+    // The ending's own track fades in with the picture and loops until the player leaves. It ignores the turning down of
+    // the music (the preview turns the scene below silent).
+    this.music = playMusic(this, MUSIC[this.ending], true)
     this.addArt()
     this.panel = new StoryPanel(this, {
       x: this.scale.width / 2,
@@ -191,9 +199,11 @@ export class EndingScene extends Phaser.Scene {
   private back() {
     if (this.leaving || !this.preview) return
     this.leaving = true
-    const { from } = this.preview
+    const { from, restoreDuck } = this.preview
+    this.music?.stop(LEAVE_FADE_MS)
     this.cameras.main.fadeOut(LEAVE_FADE_MS, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => {
+      setMusicDuck(restoreDuck) // the scene below gets its music back
       this.scene.resume(from)
       this.scene.stop()
     })
@@ -202,6 +212,7 @@ export class EndingScene extends Phaser.Scene {
   private go(target: 'ShopScene' | 'TitleScene') {
     if (this.leaving) return
     this.leaving = true
+    this.music?.stop(LEAVE_FADE_MS)
     this.cameras.main.fadeOut(LEAVE_FADE_MS, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(target))
   }

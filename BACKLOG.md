@@ -1,23 +1,21 @@
 # Backlog
 
-## Plan until release (in order)
-1. [x] Money balance playtest (is the target reachable? decides difficulty values). Done: scripts/balance.ts exists for exhaustive analysis.
-2. [x] Hints reworked (near-miss 'So close' + two-axis hints with magnitude), verified with scripts/hints.ts; results in assets_raw/hints_output_v2.txt and v3.txt.
-3. Economy rework + difficulty (one task, touches economy/scoring — needs explicit permission):
-   - Perfume has a base price; stars decide payment and tip. Draft: 0★ customer refuses ($0), 1★ haggles and pays half ($100), 2★ full price ($200), 3★ full price + tip ($200 + $100).
-   - Show payment and tip separately on delivery (ties in with the delivery juice item: stars fill, counter counts up, coin sound).
-   - Difficulty: Easy / Normal / Hard targets, draft $1,800 / $2,200 / $2,600; the story text shows the selected debt. (Playtest on the old prices: 6×3★, 3×2★, 1×1★ = $2,460.)
-   - Smells per difficulty: Easy 3, Normal 2, Hard 2 (decide after testing).
-   - After the change, re-run scripts/balance.ts with the new prices and confirm the targets.
-4. Button plates via DreamLayer (blank plates, text drawn in code, Phaser NineSlice)
-5. Title screen: shop exterior image, painted "Attar" sign with drop/swing animation, logo, background music, Play + Settings buttons
-6. Settings: music and SFX volume, mute toggles, key bindings list; persist in localStorage
-7. Proper interactive tutorial on the first order: step by step, highlight the relevant object (bottle, flask, Smell, notebook, Deliver), advance when the player does the action. Tutorial tip: "Close? Add a drop instead of starting over."
-8. End-of-day summary screen (day earnings, total vs target)
-9. Delivery juice: stars fill one by one, money counter counts up, coin sound
-10. Esc pause menu: Resume / Settings / Main menu
-11. Story intro/ending rewrite: framed portrait of the old master (the player's grandfather) via DreamLayer, longer story about the shop's history and the grandfather, typewriter text with click-to-continue and a Skip button; ending_win / ending_lose screens
-12. Release cleanup: remove dev shortcuts N, B, G, E, 1, 2, 3 and the 'dev:' label (bottom-left of the MIX screen), npm run build, itch.io HTML5 upload, page text (how DreamLayer was used, before/after images), DEVLOG "How DreamLayer was used" section, audio credits (per-file links TODO in ASSET_LOG)
+## Plan until release
+### Oct 8
+- Fix: difficulty panel still shows "$" amounts; use gold coins (e.g. "Debt 18 gold coins · 3 smells per customer")
+- Difficulty panel: select a difficulty first, then a "Begin" button starts the game
+- Longer story intro: 4-5 pages, 2-3 sentences each (text to be provided)
+- Private test upload to itch.io (check paths, audio, fonts, scaling)
+### Oct 9
+- Player character via DreamLayer reference workflow (one approved reference, then happy / neutral / sad expressions); small portrait + reply bubble on the REACT screen
+- Transition from counter to customer: short fade + footsteps sound; player's reply line depends on the result
+### Oct 10
+- Music: title/lobby track and one track per ending (files from Pixabay, credits in ASSET_LOG)
+- Sign chain snap: one chain breaks first, sign swings on the other, then falls
+- Redesign customer portraits in a style consistent with the rest of the game (uses ~20 credits; only if credits remain)
+- Optional: colour polish of bubbles/buttons
+### Oct 11
+- Release cleanup: remove dev shortcuts (N, B, G, E, 1, 2, 3) and "dev:" label, npm run build, final itch.io upload, page text with DreamLayer workflow and before/after images, DEVLOG "How DreamLayer was used", audio credits
 
 ## Not urgent / polish
 - Notebook: citrus caption colour is hard to read on stains, darken slightly
