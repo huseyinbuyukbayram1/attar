@@ -8,6 +8,7 @@ import { DEV_KEYS, devEndingMoney } from '../game/dev'
 import { shouldShowTutorial } from '../game/tutorial'
 import { deliveryFor, formatCoins } from '../game/economy'
 import type { Delivery } from '../game/economy'
+import { hintCategory, pickReply, starsCategory } from '../game/playerLines'
 import { hintFor, mixScent, scoreMix } from '../game/scoring'
 import { liquidColor } from './ui/liquidColor'
 import type { Stars } from '../game/scoring'
@@ -25,6 +26,7 @@ import { MixLights } from './ui/MixLights'
 import { FINAL_MIX_ENABLED } from './ui/mixAnimation'
 import { MixView } from './ui/MixView'
 import { OrderView } from './ui/OrderView'
+import { PlayerReply } from './ui/PlayerReply'
 import { ReactView } from './ui/ReactView'
 import { Tutorial } from './ui/Tutorial'
 import { SpeechBox } from './ui/SpeechBox'
@@ -35,6 +37,7 @@ export const TRANSITION_MS = 350 // total time of a fade between phases (half ou
 const PAYMENT_COUNT_MS = 400 // each money line (payment, tip) counts up from 0 in this time
 const PAUSE_MS = 300 // a beat of empty shop before the next customer walks in
 const SPEECH_FADE_MS = 250 // the speech box fades in once the customer has arrived
+const REPLY_DELAY_MS = 400 // the player answers a moment after the customer's hint or the result line
 const BUTTON_FADE_MS = 250 // then the "Make perfume" button
 const COIN_FALLBACK_VOLUME = 0.5 // without a coin sound the click plays, this much quieter
 const COIN_RATE = { min: 0.95, max: 1.08 } // every coin sound is a little higher or lower
@@ -104,6 +107,7 @@ export class ShopScene extends Phaser.Scene {
   private mixLights!: MixLights
   private sounds!: SoundManager
   private reactView!: ReactView
+  private playerReply!: PlayerReply
   private hud!: CoinAmount
   private dayCard!: DayCard
   private cashBox!: CashBox
@@ -204,6 +208,8 @@ export class ShopScene extends Phaser.Scene {
       },
       onNext: () => this.next(),
     })
+
+    this.playerReply = new PlayerReply(this)
 
     // It asks the views where things are
     this.tutorial = practice
@@ -478,6 +484,7 @@ export class ShopScene extends Phaser.Scene {
     this.mixBackdrop.forEach((layer) => layer.setVisible(phase === 'mix'))
     this.orderView.setVisible(phase === 'order')
     this.reactView.setVisible(phase === 'react')
+    if (phase !== 'react') this.playerReply.hide(true) // the player only talks on the REACT screen
     if (phase === 'mix') {
       const evening = this.state.timeOfDay === 'evening'
       this.mixView.show(this.state.order, evening)
@@ -503,7 +510,10 @@ export class ShopScene extends Phaser.Scene {
     state.useSmell()
     const hint = hintFor(mixScent(state.drops), state.order.target)
     this.speech.setText(hint)
-    this.speech.fadeIn(SPEECH_FADE_MS, () => {})
+    this.speech.fadeIn(SPEECH_FADE_MS, () => {
+      const reply = pickReply(hintCategory(hint))
+      this.playerReply.show(reply.expression, reply.text, REPLY_DELAY_MS)
+    })
     this.mixView.setHint(hint) // so the counter screen can show it too
     this.reactView.showChoices()
   }
@@ -525,6 +535,7 @@ export class ShopScene extends Phaser.Scene {
     }
     this.mixView.clearGhosts()
     this.reactView.hideButtons()
+    this.playerReply.hide() // the smell comment goes; the player answers the result below
     this.delivering = true
     // While it plays, a click anywhere runs the rest faster (the zone also keeps clicks from reaching anything else)
     const { width, height } = this.scale
@@ -541,10 +552,14 @@ export class ShopScene extends Phaser.Scene {
         if (practice) {
           this.sounds.play('deliver')
           this.speech.setText(`${stars}\n${PRACTICE_GOODBYE}`)
+          const reply = pickReply('practiceDone')
+          this.playerReply.show(reply.expression, reply.text, REPLY_DELAY_MS)
           return
         }
         if (payout > 0) this.sounds.play('deliver') // no money, no happy sound
         this.showPayment(`${stars}\n${REACTIONS[score.stars]}`, delivery)
+        const reply = pickReply(starsCategory(score.stars))
+        this.playerReply.show(reply.expression, reply.text, REPLY_DELAY_MS)
       },
       onCoin: (landed, total) => {
         this.showHudMoney(moneyBefore + Math.round((payout * landed) / total))
@@ -621,6 +636,7 @@ export class ShopScene extends Phaser.Scene {
     this.busy = true
     this.sounds.play('click')
     this.reactView.hideButtons()
+    this.playerReply.hide()
     this.speech.setVisible(false) // the result text goes away as the customer leaves
     this.customer.leave(() => {
       if (this.state.practice) {

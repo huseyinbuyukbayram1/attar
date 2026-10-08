@@ -39,6 +39,10 @@ export class BootScene extends Phaser.Scene {
     this.load.image('title_sign', 'assets/title/title_sign.png')
     // Sabiha, the practice customer of the tutorial (she is not one of the ORDERS, so she is loaded here)
     this.load.image('customer_practice', 'assets/characters/customer_practice.png')
+    // The player character's three expressions on the REACT screen (same size and framing, so they swap cleanly)
+    for (const expression of ['neutral', 'happy', 'sad']) {
+      this.load.image(`player_${expression}`, `assets/characters/player_${expression}.png`)
+    }
     // Painted button plates (long and short for buttons and labels, round for future icon buttons)
     this.load.image('button_long', 'assets/ui/button_long.png')
     this.load.image('button_short', 'assets/ui/button_short.png')
