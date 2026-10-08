@@ -3,7 +3,7 @@
 import { INGREDIENTS } from '../src/data/ingredients'
 import { ORDERS } from '../src/data/customers'
 import { DIFFICULTIES, DIFFICULTY_IDS } from '../src/game/difficulty'
-import { formatMoney, payoutFor } from '../src/game/economy'
+import { formatCoins, goldCoins, payoutFor } from '../src/game/economy'
 import { MAX_DROPS, MIN_DROPS, scoreMix } from '../src/game/scoring'
 import type { Stars } from '../src/game/scoring'
 
@@ -73,16 +73,16 @@ const customers = ORDERS.length
 const three = payoutFor(3)
 const two = payoutFor(2)
 const one = payoutFor(1)
-console.log(`\nPayout (src/game/economy.ts): 0★ ${formatMoney(payoutFor(0))} (refused), 1★ ${formatMoney(one)} (haggled), 2★ ${formatMoney(two)}, 3★ ${formatMoney(three)} (price + tip)`)
-console.log(`Max possible money (3★ on all ${customers} orders): ${formatMoney(customers * three)}. All 2★: ${formatMoney(customers * two)}; all 1★: ${formatMoney(customers * one)}`)
+console.log(`\nPayout (src/game/economy.ts): 0★ ${goldCoins(payoutFor(0))} (refused), 1★ ${goldCoins(one)} (haggled), 2★ ${goldCoins(two)}, 3★ ${goldCoins(three)} (price + tip)`)
+console.log(`Max possible money (3★ on all ${customers} orders): ${goldCoins(customers * three)}. All 2★: ${goldCoins(customers * two)}; all 1★: ${goldCoins(customers * one)}`)
 
 for (const id of DIFFICULTY_IDS) {
   const { label, debt, smells, greatWin } = DIFFICULTIES[id]
-  console.log(`\n${label}: target ${formatMoney(debt)}, ${smells} smells per order, "customers lining up" from ${formatMoney(greatWin)}`)
+  console.log(`\n${label}: target ${goldCoins(debt)}, ${smells} smells per order, "customers lining up" from ${goldCoins(greatWin)}`)
   console.log('  3★ on X orders, 2★ on the rest:')
   for (let x = 0; x <= customers; x++) {
     const money = x * three + (customers - x) * two
-    console.log(`    X=${String(x).padStart(2)}: ${formatMoney(money).padStart(7)}  ${money >= debt ? 'reaches the target' : `short by ${formatMoney(debt - money)}`}`)
+    console.log(`    X=${String(x).padStart(2)}: ${formatCoins(money).padStart(3)} coins  ${money >= debt ? 'reaches the target' : `short by ${goldCoins(debt - money)}`}`)
   }
   const needed = Array.from({ length: customers + 1 }, (_, x) => x).find((x) => x * three + (customers - x) * two >= debt)
   console.log(`  Minimum 3★ orders needed (2★ on the rest): ${needed ?? 'not reachable'}`)

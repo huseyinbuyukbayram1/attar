@@ -5,7 +5,7 @@ import type { Difficulty } from './difficulty'
 export type PreviewEnding = 'lose' | 'win' | 'great'
 
 export function previewMoney(ending: PreviewEnding, difficulty: Pick<Difficulty, 'debt' | 'greatWin'>): number {
-  if (ending === 'lose') return Math.max(0, difficulty.debt - 300) // 300 short of the target
-  if (ending === 'win') return difficulty.debt + 100 // paid, a little over
-  return difficulty.greatWin + 100
+  if (ending === 'lose') return Math.max(0, difficulty.debt - 3) // 3 coins short of the target
+  if (ending === 'win') return difficulty.debt + 1 // paid, a little over
+  return difficulty.greatWin + 1
 }

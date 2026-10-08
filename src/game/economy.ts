@@ -20,12 +20,18 @@ export function payoutFor(stars: Stars): number {
   return delivery.payment + delivery.tip
 }
 
-// "Debt $1,800 · 3 smells per customer", for the difficulty picker
+// "Debt 18 gold coins · 3 smells per customer", for the difficulty picker
 export function describeDifficulty(difficulty: Difficulty): string {
-  return `Debt ${formatMoney(difficulty.debt)} · ${difficulty.smells} smells per customer`
+  return `Debt ${goldCoins(difficulty.debt)} · ${difficulty.smells} smells per customer`
 }
 
-// 1240 -> "$1,240"
-export function formatMoney(amount: number): string {
-  return `$${amount.toLocaleString('en-US')}`
+// The money is gold coins. In the interface a number stands next to a small coin picture (see CoinAmount.ts):
+// 1240 -> "1,240"
+export function formatCoins(amount: number): string {
+  return amount.toLocaleString('en-US')
+}
+
+// In running text the coins are words: 22 -> "22 gold coins", 1 -> "1 gold coin"
+export function goldCoins(amount: number): string {
+  return `${formatCoins(amount)} gold ${amount === 1 ? 'coin' : 'coins'}`
 }

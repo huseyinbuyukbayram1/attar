@@ -1,7 +1,7 @@
 // All the story text of the game, in one place. Plain TypeScript, no Phaser.
 // {debt} is replaced by the debt of the chosen difficulty and {earned} by the money earned, both
-// written like the money display ("$2,200").
-import { formatMoney } from './economy'
+// written in words ("22 gold coins").
+import { goldCoins } from './economy'
 
 // The story before the first customer, one page at a time
 export const INTRO_PAGES: string[] = [
@@ -30,5 +30,5 @@ export const DAY_ONE_CARD = 'The shop is open — Day 1' // the title card after
 
 // Puts the debt and the money into a story text
 export function fillStory(text: string, debt: number, earned = 0): string {
-  return text.replace('{debt}', formatMoney(debt)).replace('{earned}', formatMoney(earned))
+  return text.replace('{debt}', goldCoins(debt)).replace('{earned}', goldCoins(earned))
 }

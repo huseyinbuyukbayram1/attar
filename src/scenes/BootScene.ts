@@ -45,6 +45,11 @@ export class BootScene extends Phaser.Scene {
     this.load.image('button_round', 'assets/ui/button_round.png')
     // The open notebook (1100x703), the background of the ingredient notebook panel
     this.load.image('notebook_open', 'assets/props/notebook_open.png')
+    // The delivery: the gift bottle (165x220), the cash box (240x223) and a coin (64x44); without them the
+    // animation skips the bottle and the box, and the coins are plain circles
+    this.load.image('gift_bottle', 'assets/props/gift_bottle.png')
+    this.load.image('cashbox', 'assets/props/cashbox.png')
+    this.load.image('coin', 'assets/props/coin.png')
     // The waste pot that rises behind the flask when it is emptied; without it the animation has no pot
     this.load.image('waste_pot', 'assets/props/waste_pot.png')
     // The story: the grandfather's portrait for the intro and the three ending pictures (a missing

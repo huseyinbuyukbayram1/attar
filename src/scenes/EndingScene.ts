@@ -1,11 +1,12 @@
 import Phaser from 'phaser'
 import { getDifficulty } from '../game/difficulty'
-import { formatMoney } from '../game/economy'
+import { formatCoins } from '../game/economy'
+import { CoinAmount } from './ui/CoinAmount'
 import { fillStory, GREAT_WIN_PAGE, LOSE_PAGE, WIN_PAGE } from '../game/story'
 import { PlateButton } from './ui/PlateButton'
 import { StoryPanel } from './ui/StoryPanel'
 import { addFullImage } from './ui/fullImage'
-import { FONT, LOGO_FONT, LOGO_LETTER_SPACING } from './ui/theme'
+import { LOGO_FONT, LOGO_LETTER_SPACING } from './ui/theme'
 
 // Fallback backgrounds (the shop with an overlay) when an ending picture is missing
 const WIN_LOOK = { tint: 0xffffff, overlay: 0x4a2e14, overlayAlpha: 0.3 } // warm, a bit lighter
@@ -178,11 +179,7 @@ export class EndingScene extends Phaser.Scene {
       new PlateButton(this, row.bandX, BOTTOM_ROW.y, { label: 'Back', width: BOTTOM_ROW.buttonWidth, height: BOTTOM_ROW.buttonHeight, fontSize: BOTTOM_ROW.fontSize, onClick: () => this.back() })
       return
     }
-    this.add
-      .text(row.moneyX, BOTTOM_ROW.y, `${formatMoney(this.money)} / ${formatMoney(debt)}`, { fontFamily: FONT, fontSize: `${BOTTOM_ROW.moneySize}px`, color: BOTTOM_ROW.moneyColor })
-      .setOrigin(0.5)
-      .setResolution(2)
-      .setShadow(1, 2, '#000000', 3, true, true)
+    new CoinAmount(this, row.moneyX, BOTTOM_ROW.y, { fontSize: BOTTOM_ROW.moneySize, color: BOTTOM_ROW.moneyColor, shadow: true }).setAmount(`${formatCoins(this.money)} / ${formatCoins(debt)}`)
     const button = (x: number, label: string, onClick: () => void) =>
       new PlateButton(this, x, BOTTOM_ROW.y, { label, width: BOTTOM_ROW.buttonWidth, height: BOTTOM_ROW.buttonHeight, fontSize: BOTTOM_ROW.fontSize, onClick })
     // "Play again" starts a fresh game at Day 1 with the same difficulty, without the story (like Restart in the pause menu)

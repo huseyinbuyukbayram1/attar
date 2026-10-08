@@ -1,5 +1,7 @@
 import Phaser from 'phaser'
 import { PlatePanel } from './PlateButton'
+import { ResultLine } from './ResultLine'
+import type { ResultData } from './ResultLine'
 import { FONT, TEXT_COLOR } from './theme'
 
 // Layout numbers for the 1280x720 screen. The top edge is fixed; the box grows downwards.
@@ -10,6 +12,8 @@ const PADDING = { x: 40, y: 26 }
 const NAME = { size: 18, color: '#9a5a32', gap: 4 } // gap: between the name and the dialogue
 // Typed-out speech (same feel as the story, see StoryPanel): speed, and the blinking arrow when the text is complete
 const TYPING = { charsPerSecond: 35 }
+// The result line under the result text ("+2 [coin]"): 80 percent of the dialogue size, a little gap above it
+const RESULT = { fontSize: 18, gap: 4 }
 const ARROW = { text: '▼', size: 20, blinkMs: 500, inset: { x: 26, y: 24 } } // inset: from the bottom right corner
 
 // The customer's speech bubble: the name on the first line, the dialogue below it. Used for the order
@@ -25,6 +29,8 @@ export class SpeechBox {
   private typing?: Phaser.Tweens.Tween
   private typingNow = false
   private arrow: Phaser.GameObjects.Text
+  private resultLine: ResultLine
+  private resultShown = false
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
@@ -47,7 +53,8 @@ export class SpeechBox {
       .setOrigin(0.5)
     this.arrow = scene.add.text(0, 0, ARROW.text, { fontFamily: FONT, fontSize: `${ARROW.size}px`, color: TEXT_COLOR }).setOrigin(0.5).setVisible(false)
     scene.tweens.add({ targets: this.arrow, alpha: 0.2, duration: ARROW.blinkMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
-    this.root.add([this.background, this.nameText, this.speechText, this.arrow])
+    this.resultLine = new ResultLine(scene, 0, 0, RESULT.fontSize).setVisible(false)
+    this.root.add([this.background, this.nameText, this.speechText, this.resultLine, this.arrow])
     this.layout()
   }
 
@@ -63,8 +70,24 @@ export class SpeechBox {
 
   setText(text: string) {
     this.clearTyped()
+    this.showResultLine(undefined)
     this.speechText.setText(text)
     this.layout()
+  }
+
+  // The result of a delivery: a text (stars, reaction), and under it the small result line with the coin.
+  // Called again and again while the numbers count up, so it only changes texts.
+  setResult(head: string, result: ResultData) {
+    this.clearTyped()
+    this.speechText.setText(head)
+    this.showResultLine(result)
+    this.layout()
+  }
+
+  private showResultLine(result: ResultData | undefined) {
+    this.resultShown = !!result
+    this.resultLine.setVisible(!!result)
+    if (result) this.resultLine.setLine(result)
   }
 
   // Types the text out letter by letter, then shows the blinking arrow. The box is sized to the FULL text
@@ -151,7 +174,8 @@ export class SpeechBox {
   private layout() {
     const nameHeight = this.nameText.text ? this.nameText.height : 0
     const gap = nameHeight > 0 ? NAME.gap : 0
-    const contentHeight = nameHeight + gap + this.speechText.height
+    const resultHeight = this.resultShown ? this.resultLine.lineHeight + RESULT.gap : 0
+    const contentHeight = nameHeight + gap + this.speechText.height + resultHeight
     const width = Phaser.Math.Clamp(Math.max(this.speechText.width, this.nameText.width) + PADDING.x * 2, BOX.minWidth, BOX.maxWidth)
     const height = Math.max(BOX.minHeight, contentHeight + PADDING.y * 2)
     const top = (height - contentHeight) / 2 // the name and the text are centered vertically as one block
@@ -162,5 +186,6 @@ export class SpeechBox {
     this.arrow.setPosition(width / 2 - ARROW.inset.x, height - ARROW.inset.y)
     this.nameText.setPosition(0, top + nameHeight / 2)
     this.speechText.setPosition(0, top + nameHeight + gap + this.speechText.height / 2)
+    this.resultLine.setPosition(0, top + nameHeight + gap + this.speechText.height + RESULT.gap + this.resultLine.lineHeight / 2)
   }
 }

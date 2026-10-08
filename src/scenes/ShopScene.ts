@@ -6,11 +6,15 @@ import { GameState } from '../game/gameState'
 import type { TimeOfDay } from '../game/gameState'
 import { DEV_KEYS, devEndingMoney } from '../game/dev'
 import { shouldShowTutorial } from '../game/tutorial'
-import { deliveryFor, formatMoney } from '../game/economy'
+import { deliveryFor, formatCoins } from '../game/economy'
 import type { Delivery } from '../game/economy'
 import { hintFor, mixScent, scoreMix } from '../game/scoring'
+import { liquidColor } from './ui/liquidColor'
 import type { Stars } from '../game/scoring'
+import { CashBox } from './ui/CashBox'
+import { CoinAmount } from './ui/CoinAmount'
 import { CustomerArt } from './ui/CustomerArt'
+import { DeliveryAnimation } from './ui/DeliveryAnimation'
 import { addCounterCrop } from './ui/counterCrop'
 import { addCounterDarken } from './ui/counterBand'
 import { ContactSheet } from './ui/ContactSheet'
@@ -32,6 +36,7 @@ const PAYMENT_COUNT_MS = 400 // each money line (payment, tip) counts up from 0 
 const PAUSE_MS = 300 // a beat of empty shop before the next customer walks in
 const SPEECH_FADE_MS = 250 // the speech box fades in once the customer has arrived
 const BUTTON_FADE_MS = 250 // then the "Make perfume" button
+const COIN_FALLBACK_VOLUME = 0.5 // without a coin sound the click plays, this much quieter
 const PRACTICE_FADE_MS = 500 // the shop fades in from dark when the practice starts, and out when it is skipped
 const COUNTER_TOP_Y = 578 // in canvas pixels: the counter's top edge; everything from here down is drawn in front of the customer
 // TEMP: remove before release (also the marked code in create() and showCustomerAtOnce())
@@ -57,7 +62,7 @@ const FADE_COLOR = 0x1a1210
 const FADE_DEPTH = 1000 // above everything, so the transition covers the whole screen
 
 // Small always-on labels in the top corners (16 px from the canvas edges)
-const HUD = { x: 1144, y: 38, width: 240, height: 44 } // one line: money / debt
+const HUD = { x: 1144, y: 38, width: 240, height: 44, fontSize: 18, color: '#3b2412' } // one line: [coin] money / debt
 
 // What the customer says after delivery, by star count
 const REACTIONS: Record<Stars, string> = {
@@ -90,8 +95,11 @@ export class ShopScene extends Phaser.Scene {
   private mixLights!: MixLights
   private sounds!: SoundManager
   private reactView!: ReactView
-  private hud!: Phaser.GameObjects.Text
+  private hud!: CoinAmount
   private dayCard!: DayCard
+  private cashBox!: CashBox
+  private deliveryAnimation!: DeliveryAnimation
+  private delivering = false // the delivery animation is playing
   private fade!: Phaser.GameObjects.Rectangle
   private phase: Phase = 'order'
   private pausing = false // the pause menu is open (or opening)
@@ -127,6 +135,10 @@ export class ShopScene extends Phaser.Scene {
       counter.setDepth(DEPTH.counter)
       this.counterOverlays.push(counter)
     }
+    this.cashBox = new CashBox(this) // on the counter in the ORDER and REACT screens
+    this.cashBox.setMoney(this.state.money, this.state.debt) // a new run starts with an empty box
+    this.deliveryAnimation = new DeliveryAnimation(this, this.cashBox)
+    this.delivering = false
     this.evening = new EveningOverlay(
       this,
       'shop_morning',
@@ -137,7 +149,8 @@ export class ShopScene extends Phaser.Scene {
     this.mixEvening = new MixEvening(this, 'counter_view', DEPTH.mixEvening)
     this.mixLights = new MixLights(this, DEPTH.mixLights)
 
-    this.hud = addPlateLabel(this, HUD.x, HUD.y, HUD.width, HUD.height, '', 18)
+    addPlateLabel(this, HUD.x, HUD.y, HUD.width, HUD.height, '', 18) // the plate; the numbers are drawn over it
+    this.hud = new CoinAmount(this, HUD.x, HUD.y, { fontSize: HUD.fontSize, color: HUD.color })
 
     this.speech = new SpeechBox(this)
     this.orderView = new OrderView(this, () => {
@@ -219,6 +232,7 @@ export class ShopScene extends Phaser.Scene {
   setTimeOfDay(time: TimeOfDay, instant = false) {
     this.evening.setTime(time, instant)
     this.customer.setTint(time === 'evening' ? EVENING_CUSTOMER_TINT : null, instant)
+    this.cashBox.setEvening(time === 'evening', instant)
     this.sounds.setTime(time, instant)
   }
 
@@ -284,8 +298,11 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private updateHud() {
-    const { state } = this
-    this.hud.setText(`${formatMoney(state.money)} / ${formatMoney(state.debt)}`)
+    this.showHudMoney(this.state.money)
+  }
+
+  private showHudMoney(money: number) {
+    this.hud.setAmount(`${formatCoins(money)} / ${formatCoins(this.state.debt)}`)
   }
 
   // Resets the screen for the customer in the state, without showing the customer yet: the
@@ -362,7 +379,7 @@ export class ShopScene extends Phaser.Scene {
   // Deliver in the REACT phase: back to the counter for a last stir with the slots as they are,
   // then back to the customer for the result. Clicks are blocked all along.
   private deliverFromReact() {
-    if (this.busy) return
+    if (this.busy || this.delivering) return
     this.sounds.play('click')
     // Same mix as the last stir (or the final stir is off): score at once
     if (!FINAL_MIX_ENABLED || this.mixView.isStirred()) {
@@ -386,6 +403,7 @@ export class ShopScene extends Phaser.Scene {
     const showCustomer = phase !== 'mix'
     this.customer.setVisible(showCustomer)
     this.counterOverlays.forEach((overlay) => overlay.setVisible(showCustomer))
+    this.cashBox.setVisible(showCustomer)
     this.evening.setCounterVisible(showCustomer)
     this.speech.setVisible(showCustomer)
     this.mixBackdrop.forEach((layer) => layer.setVisible(phase === 'mix'))
@@ -414,38 +432,71 @@ export class ShopScene extends Phaser.Scene {
     this.reactView.showChoices()
   }
 
+  // Deliver: the game decides at once (stars and money in the state), and the animation shows it: the gift
+  // bottle is filled and handed over, then the result lines play and the payment flies into the cash box as
+  // coins (DeliveryAnimation). The Next button comes when it is over. The practice customer pays nothing.
   private deliver() {
     const { state } = this
     const score = scoreMix(state.drops, state.order)
-    if (state.practice) {
-      // The practice customer pays nothing and counts for nothing: no money, no stars, no tip
-      this.mixView.clearGhosts()
-      this.sounds.play('deliver')
-      this.speech.setText(`${'★'.repeat(score.stars)}${'☆'.repeat(3 - score.stars)}\n${PRACTICE_GOODBYE}`)
-      this.reactView.showNext('Open the shop')
-      return
-    }
-    const delivery = deliveryFor(score.stars)
-    state.addStars(score.stars)
-    state.addMoney(delivery.payment + delivery.tip)
-    this.mixView.clearGhosts()
-    if (delivery.payment + delivery.tip > 0) this.sounds.play('deliver') // no money, no happy sound
     const stars = '★'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
-    this.showPayment(`${stars}\n${REACTIONS[score.stars]}`, delivery)
-    this.reactView.showNext(state.isLastOrder ? 'See results' : 'Next customer')
+    const practice = state.practice
+    const delivery = deliveryFor(score.stars)
+    const payout = practice ? 0 : delivery.payment + delivery.tip
+    const moneyBefore = state.money // the HUD keeps this until the coins land
+    if (!practice) {
+      state.addStars(score.stars)
+      state.addMoney(payout)
+    }
+    this.mixView.clearGhosts()
+    this.reactView.hideButtons()
+    this.delivering = true
+    // While it plays, a click anywhere runs the rest faster (the zone also keeps clicks from reaching anything else)
+    const { width, height } = this.scale
+    const clicks = this.add.zone(width / 2, height / 2, width, height).setInteractive().setDepth(FADE_DEPTH - 1)
+    clicks.on('pointerdown', () => this.deliveryAnimation.speedUp())
+    this.deliveryAnimation.play({
+      color: liquidColor(state.drops),
+      evening: state.timeOfDay === 'evening',
+      refused: !practice && delivery.kind === 'refused',
+      payout,
+      onPour: () => this.sounds.play('pour'),
+      onCoinSound: () => (this.sounds.has('coin') ? this.sounds.play('coin') : this.sounds.play('click', COIN_FALLBACK_VOLUME)),
+      onResult: () => {
+        if (practice) {
+          this.sounds.play('deliver')
+          this.speech.setText(`${stars}\n${PRACTICE_GOODBYE}`)
+          return
+        }
+        if (payout > 0) this.sounds.play('deliver') // no money, no happy sound
+        this.showPayment(`${stars}\n${REACTIONS[score.stars]}`, delivery)
+      },
+      onCoin: (landed, total) => {
+        this.showHudMoney(moneyBefore + Math.round((payout * landed) / total))
+        if (landed === total) this.cashBox.setMoney(state.money, state.debt) // the pile grows when the last coin has landed
+      },
+      onDone: () => {
+        clicks.destroy()
+        this.delivering = false
+        this.updateHud() // the exact total, whatever the coins showed
+        this.reactView.showNext(practice ? 'Open the shop' : state.isLastOrder ? 'See results' : 'Next customer')
+      },
+    })
   }
 
   // The result text: the stars and the reaction, then the money as separate lines that count up one
-  // after the other ("Payment +$200", then "Tip +$100"). The HUD total changes when the counting ends.
+  // after the other ("+2 [coin]", then "+1 [coin] tip"). The HUD total follows the coins (see deliver).
   private showPayment(head: string, delivery: Delivery) {
-    const text = (payment: number, tip: number | null) => {
-      if (delivery.kind === 'refused') return `${head}\nNo sale`
-      const haggled = delivery.kind === 'haggled' ? ' (haggled)' : ''
-      return `${head}\nPayment +${formatMoney(payment)}${haggled}${tip === null ? '' : `\nTip +${formatMoney(tip)}`}`
+    // The result line carries the coin picture (see SpeechBox.setResult); "No sale" is an italic note
+    const show = (payment: number, tip: number | null) => {
+      if (delivery.kind === 'refused') {
+        this.speech.setResult(head, { note: 'No sale' })
+        return
+      }
+      const haggled = delivery.kind === 'haggled'
+      this.speech.setResult(head, { groups: [{ amount: payment, suffix: haggled ? '(haggled)' : undefined }, ...(tip === null ? [] : [{ amount: tip, suffix: 'tip' }])] })
     }
     const finish = () => {
-      this.speech.setText(text(delivery.payment, delivery.tip > 0 ? delivery.tip : null))
-      this.updateHud()
+      show(delivery.payment, delivery.tip > 0 ? delivery.tip : null)
       this.finishPayment = () => {}
     }
     this.finishPayment = () => {
@@ -456,14 +507,14 @@ export class ShopScene extends Phaser.Scene {
       finish()
       return
     }
-    this.speech.setText(text(0, null))
-    this.countUp(delivery.payment, (value) => this.speech.setText(text(value, null)), () => {
+    show(0, null)
+    this.countUp(delivery.payment, (value) => show(value, null), () => {
       if (delivery.tip === 0) {
         finish()
         return
       }
-      this.speech.setText(text(delivery.payment, 0))
-      this.countUp(delivery.tip, (value) => this.speech.setText(text(delivery.payment, value)), finish)
+      show(delivery.payment, 0)
+      this.countUp(delivery.tip, (value) => show(delivery.payment, value), finish)
     })
   }
 
@@ -488,6 +539,7 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private next() {
+    if (this.delivering) return
     this.finishPayment() // if the money is still counting up, show it at once
     // Hide the buttons and block clicks so a double click can't advance twice during the fade
     this.busy = true

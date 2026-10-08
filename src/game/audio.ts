@@ -5,7 +5,7 @@ import type Phaser from 'phaser'
 import type { TimeOfDay } from './gameState'
 import { getMusicDuck, getSettings, onSettingsChange, updateSettings } from './settings'
 
-export type SoundEvent = 'ambienceMorning' | 'ambienceEvening' | 'bottle' | 'pour' | 'mix' | 'smell' | 'deliver' | 'click' | 'signFall'
+export type SoundEvent = 'ambienceMorning' | 'ambienceEvening' | 'bottle' | 'pour' | 'mix' | 'smell' | 'deliver' | 'click' | 'signFall' | 'coin'
 
 // Event -> file name inside public/assets/audio/. null = there is no matching file, so the
 // event is silent. Matched by file name; to add a sound, drop the file in the folder and write
@@ -19,6 +19,7 @@ export const SOUND_FILES: Record<SoundEvent, string | null> = {
   smell: 'smell.mp3',
   deliver: 'deliver.mp3',
   click: 'click.mp3',
+  coin: 'coin.mp3', // a coin lands in the cash box. Not there yet? The delivery plays a quiet click instead.
   signFall: 'sign_fall.mp3', // title screen: the sign falls. Not there yet? The loader warns and the sound is skipped.
 }
 
@@ -41,6 +42,7 @@ const VOLUME: Record<SoundEvent, number> = {
   deliver: 0.8,
   click: 0.4,
   signFall: 0.7,
+  coin: 0.5,
 }
 // The pour file is longer than the pour animation, so it is cut short while playing (the file
 // itself is not edited): it ends POUR_SOUND_MS after it starts, the last POUR_FADE_MS fading out.
@@ -226,14 +228,20 @@ export class SoundManager {
     }
   }
 
-  play(event: SoundEvent) {
+  // True if the sound's file was loaded
+  has(event: SoundEvent): boolean {
+    return this.scene.cache.audio.exists(keyOf(event))
+  }
+
+  // `volumeScale` makes this one play quieter than its normal volume (1 = normal)
+  play(event: SoundEvent, volumeScale = 1) {
     const key = keyOf(event)
     if (!this.scene.cache.audio.exists(key)) return
     if (event === 'pour') {
-      this.playCutShort(effectiveVolume(event))
+      this.playCutShort(effectiveVolume(event) * volumeScale)
       return
     }
-    startEffect(this.scene, event, effectiveVolume(event))
+    startEffect(this.scene, event, effectiveVolume(event) * volumeScale)
   }
 
   // Plays a sound, fades it out at the end of POUR_SOUND_MS and removes it
