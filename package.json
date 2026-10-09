@@ -11,6 +11,7 @@
     "hint-demo": "npx --yes tsx scripts/hintDemo.ts"
   },
   "devDependencies": {
+    "sharp": "^0.35.5",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   },

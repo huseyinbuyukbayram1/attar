@@ -18,10 +18,13 @@
       html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #1a1210; }
       #game { width: 100%; height: 100%; }
       canvas { display: block; }
+      /* Shown while the game's own code downloads, so the page is never blank; BootScene removes it */
+      #boot-loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #f3e2b3; font: 40px Georgia, serif; letter-spacing: 1px; }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="boot-loading">Loading…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { playEffect, playMusic } from '../game/audio'
+import { loadState } from './assets'
 import { getDifficulty, hasChosenDifficulty, setDifficulty } from '../game/difficulty'
 import { PlateButton } from './ui/PlateButton'
 import { DifficultyPanel } from './ui/DifficultyPanel'
@@ -677,7 +678,8 @@ export class TitleScene extends Phaser.Scene {
     this.time.delayedCall(HOLD_AFTER_IMPACT_MS, () => {
       this.music?.stop(PLAY_FADE_MS)
       this.cameras.main.fadeOut(PLAY_FADE_MS, 0, 0, 0)
-      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('IntroScene'))
+      // If the background loading is not done yet, the loading bar shows first (PreloadScene starts the story afterwards)
+      this.cameras.main.once('camerafadeoutcomplete', () => (loadState.gameReady ? this.scene.start('IntroScene') : this.scene.start('PreloadScene', { next: 'IntroScene' })))
     })
   }
 

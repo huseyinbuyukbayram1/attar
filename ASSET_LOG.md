@@ -102,3 +102,6 @@ Every Pixabay source used in the game, all under the Pixabay Content License (no
 - [ ] Idea: open the cork or lid of round and square bottles during a pour (separate stopper sprite cropped from the texture, lifts away and returns).
 - [ ] Rework how the chosen drops are shown (the six slot circles): current look and position feel poor, decide later.
 - [ ] Notebook: replace the code-drawn book on the counter with a generated image and polish the panel.
+
+## Compression (before the jam release)
+All pictures and music were compressed with `node scripts/compressAssets.mjs` (sharp for PNG palette ~85 and JPG q80, ffmpeg for music over 1 MB to 96 kbps; the three player portraits and the master portrait were also scaled down because they are shown much smaller than their file). The script always compresses from the untouched originals in `assets_raw/originals_before_compress/` (git-ignored; the originals are also in git history), so it can be run again safely. Assets total 27.2 MB -> 12.7 MB.

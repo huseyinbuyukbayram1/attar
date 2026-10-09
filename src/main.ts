@@ -1,5 +1,7 @@
 import Phaser from 'phaser'
 import { BootScene } from './scenes/BootScene'
+import { PreloadScene } from './scenes/PreloadScene'
+import { BackgroundLoadScene } from './scenes/BackgroundLoadScene'
 import { ShopScene } from './scenes/ShopScene'
 import { EndingScene } from './scenes/EndingScene'
 import { IntroScene } from './scenes/IntroScene'
@@ -17,5 +19,5 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT, // shrink/grow canvas to fit window, keep aspect ratio
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, TitleScene, IntroScene, ShopScene, EndingScene, PauseScene], // first scene in the list starts automatically
+  scene: [BootScene, PreloadScene, BackgroundLoadScene, TitleScene, IntroScene, ShopScene, EndingScene, PauseScene], // first scene in the list starts automatically
 })

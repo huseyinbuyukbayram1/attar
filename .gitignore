@@ -30,3 +30,6 @@ dist-ssr
 *.aup4*
 .DS_Store
 *.zip
+
+# Originals kept before compressing (scripts/compressAssets.mjs); the old versions are also in git history
+assets_raw/originals_before_compress/

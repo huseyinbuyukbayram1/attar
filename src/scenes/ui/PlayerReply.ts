@@ -10,7 +10,6 @@ const PORTRAIT = { height: 202, left: 16, bottomCut: 22 } // bottomCut: how far 
 const SLIDE = { distance: 60, ms: 250 } // slides in from the left while fading in
 const FACE_FADE_MS = 150 // the crossfade when the expression changes
 const HIDE_MS = 150
-const SOURCE_HEIGHT = 640 // the portraits are 640 px high
 // The bubble sits right of the portrait on the counter's front face, its bottom on the same line as the
 // Adjust and Deliver buttons (see ReactView), and grows upwards to fit the text
 const BUBBLE = { left: 226, bottom: 720 - 24, minWidth: 190, maxWidth: 380, minHeight: 66 }
@@ -36,11 +35,11 @@ export class PlayerReply {
   constructor(scene: Phaser.Scene) {
     this.scene = scene
     this.root = scene.add.container(0, 0).setAlpha(0).setVisible(false)
-    const scale = PORTRAIT.height / SOURCE_HEIGHT
     for (const expression of EXPRESSIONS) {
       const key = `player_${expression}`
       if (!scene.textures.exists(key)) continue // a missing picture is skipped, the bubble still works
-      const image = scene.add.image(PORTRAIT.left, 720 + PORTRAIT.bottomCut, key).setOrigin(0, 1).setScale(scale).setAlpha(0)
+      const image = scene.add.image(PORTRAIT.left, 720 + PORTRAIT.bottomCut, key).setOrigin(0, 1).setAlpha(0)
+      image.setScale(PORTRAIT.height / image.height) // from the file's own height, so the file may be any size
       this.faces.set(expression, image)
       this.root.add(image)
     }

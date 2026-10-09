@@ -82,13 +82,22 @@ const EVENTS = Object.keys(SOUND_FILES) as SoundEvent[]
 // The loaded sound's key: sfx_bottle, sfx_coin, sfx_footsteps ...
 const keyOf = (event: SoundEvent) => `sfx_${event}`
 
-// Called from BootScene.preload: loads only the events that have a file
-export function loadSounds(scene: Phaser.Scene) {
-  for (const event of EVENTS) {
+// Sounds are loaded in three steps (see PreloadScene and BackgroundLoadScene), so the title appears fast:
+// 'title' is what the title screen plays, 'endings' the ending music (big files), 'game' all the rest.
+export type SoundGroup = 'title' | 'game' | 'endings'
+const TITLE_EVENTS: SoundEvent[] = ['click', 'signFall', 'bottle'] // bottle is the small tink of the sign
+const TITLE_MUSIC: MusicKey[] = ['music_title']
+const ENDING_MUSIC: MusicKey[] = ['music_ending_lose', 'music_ending_win', 'music_ending_greatwin']
+
+// Loads only the sounds of one group that have a file
+export function loadSounds(scene: Phaser.Scene, group: SoundGroup) {
+  const events = EVENTS.filter((event) => (TITLE_EVENTS.includes(event) ? group === 'title' : group === 'game'))
+  for (const event of events) {
     const file = SOUND_FILES[event]
     if (file) scene.load.audio(keyOf(event), AUDIO_FOLDER + file)
   }
-  for (const key of Object.keys(MUSIC_FILES) as MusicKey[]) {
+  const music = (Object.keys(MUSIC_FILES) as MusicKey[]).filter((key) => (TITLE_MUSIC.includes(key) ? group === 'title' : ENDING_MUSIC.includes(key) ? group === 'endings' : false))
+  for (const key of music) {
     const file = MUSIC_FILES[key]
     if (file) scene.load.audio(key, AUDIO_FOLDER + file)
   }

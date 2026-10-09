@@ -10,6 +10,8 @@ import { PlateButton } from './ui/PlateButton'
 import { StoryPanel } from './ui/StoryPanel'
 import { addFullImage } from './ui/fullImage'
 import { LOGO_FONT, LOGO_LETTER_SPACING } from './ui/theme'
+import { ENDINGS_PROGRESS, ENDINGS_READY, loadState } from './assets'
+import { LoadingBar } from './ui/LoadingBar'
 
 // Fallback backgrounds (the shop with an overlay) when an ending picture is missing
 const WIN_LOOK = { tint: 0xffffff, overlay: 0x4a2e14, overlayAlpha: 0.3 } // warm, a bit lighter
@@ -85,6 +87,7 @@ export class EndingScene extends Phaser.Scene {
   // Set when the ending is only looked at (Settings > Extras > View endings): it runs on top of the paused
   // scene it came from (`from`), changes nothing of the run, and its only button goes back there
   private preview?: { from: string; restoreDuck: number } // restoreDuck: how loud the music of the scene below was
+  private initData!: { money: number; preview?: { from: string; restoreDuck: number } }
   private music?: { stop: (fadeMs?: number) => void }
 
   constructor() {
@@ -93,11 +96,15 @@ export class EndingScene extends Phaser.Scene {
 
   // Phaser hands over whatever ShopScene passed to scene.start
   init(data: { money: number; preview?: { from: string; restoreDuck: number } }) {
+    this.initData = data
     this.money = data.money
     this.preview = data.preview
   }
 
   create() {
+    // The ending pictures and music load last, in the background. A player who gets here first (for
+    // example by opening the ending preview right after the title) sees the loading bar until they are there.
+    if (!loadState.endingsReady) return this.waitForEndingAssets()
     const { debt, greatWin } = getDifficulty() // the difficulty of this game
     this.ending = this.money < debt ? 'lose' : this.money >= greatWin ? 'great' : 'win'
     const text = this.ending === 'lose' ? LOSE_PAGE : this.ending === 'great' ? GREAT_WIN_PAGE : WIN_PAGE
@@ -132,6 +139,19 @@ export class EndingScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       keyboard?.off('keydown-SPACE', onSpace)
       keyboard?.off('keydown-ESC', onEsc)
+    })
+  }
+
+  private waitForEndingAssets() {
+    if (this.preview) this.scene.bringToTop()
+    const bar = new LoadingBar(this)
+    const onProgress = (value: number) => bar.set(value)
+    this.game.events.on(ENDINGS_PROGRESS, onProgress)
+    const restart = () => this.scene.restart(this.initData)
+    this.game.events.once(ENDINGS_READY, restart)
+    this.events.once('shutdown', () => {
+      this.game.events.off(ENDINGS_PROGRESS, onProgress)
+      this.game.events.off(ENDINGS_READY, restart)
     })
   }
 
