@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { GAME_PROGRESS, GAME_READY, loadState, queueTitleAssets, warnOnMissing } from './assets'
+import { GAME_PROGRESS, GAME_READY, loadState, queueTitleAssets } from './assets'
 import { LoadingBar } from './ui/LoadingBar'
 
 // Shows the loading bar in two situations:
@@ -21,7 +21,6 @@ export class PreloadScene extends Phaser.Scene {
   preload() {
     this.bar = new LoadingBar(this)
     if (this.next) return // waiting for the background load: nothing to load here, see create()
-    warnOnMissing(this.load)
     this.load.on('progress', (value: number) => this.bar.set(value))
     queueTitleAssets(this)
   }

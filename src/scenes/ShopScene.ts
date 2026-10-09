@@ -1,10 +1,8 @@
 import Phaser from 'phaser'
-import { ORDERS } from '../data/customers'
 import { DAY_ONE_CARD, PRACTICE_GOODBYE, PRACTICE_INTRO } from '../game/story'
 import { SoundManager } from '../game/audio'
 import { GameState } from '../game/gameState'
 import type { TimeOfDay } from '../game/gameState'
-import { DEV_KEYS, devEndingMoney } from '../game/dev'
 import { shouldShowTutorial } from '../game/tutorial'
 import { deliveryFor, formatCoins } from '../game/economy'
 import type { Delivery } from '../game/economy'
@@ -18,7 +16,6 @@ import { CustomerArt } from './ui/CustomerArt'
 import { DeliveryAnimation } from './ui/DeliveryAnimation'
 import { addCounterCrop } from './ui/counterCrop'
 import { addCounterDarken } from './ui/counterBand'
-import { ContactSheet } from './ui/ContactSheet'
 import { DayCard } from './ui/DayCard'
 import { EveningOverlay } from './ui/EveningOverlay'
 import { MixEvening } from './ui/MixEvening'
@@ -52,8 +49,6 @@ const WALK_TO_CUSTOMER: Walk = { fadeMs: 250, durationMs: FOOTSTEPS_DURATION_MS,
 const WALK_TO_COUNTER: Walk = { fadeMs: 150, durationMs: FOOTSTEPS_SHORT_DURATION_MS, fadeOutMs: 200 }
 const PRACTICE_FADE_MS = 500 // the shop fades in from dark when the practice starts, and out when it is skipped
 const COUNTER_TOP_Y = 578 // in canvas pixels: the counter's top edge; everything from here down is drawn in front of the customer
-// TEMP: remove before release (also the marked code in create() and showCustomerAtOnce())
-const DEV_SKIP_KEYS = DEV_KEYS // N = next customer, B = previous (no scoring), G = contact sheet, E = evening in it
 
 const EVENING_CUSTOMER_TINT = 0xffd9b0 // warm tint so the portrait matches the evening light
 // Depth of every scene layer, back to front. UI objects keep the default depth 0, so all the
@@ -121,8 +116,6 @@ export class ShopScene extends Phaser.Scene {
   private payTween?: Phaser.Tweens.Tween // the counting of the payment lines
   private finishPayment: () => void = () => {} // shows the final lines and the HUD at once (when Next is pressed early)
   private leavingToEnding = false
-  private devLabel?: Phaser.GameObjects.Text // TEMP: remove before release
-  private sheet?: ContactSheet // TEMP: remove before release
 
   constructor() {
     super('ShopScene')
@@ -237,9 +230,6 @@ export class ShopScene extends Phaser.Scene {
     this.sounds.startAmbience(this.state.timeOfDay)
     this.events.once('shutdown', () => this.sounds.destroy())
 
-    // TEMP: remove before release
-    if (DEV_SKIP_KEYS) this.addDevKeys()
-
     if (practice) this.beginPractice()
     else this.beginCustomer(true)
   }
@@ -334,7 +324,6 @@ export class ShopScene extends Phaser.Scene {
     this.updateHud()
     this.speech.setSpeaker(state.order.customerName)
     this.speech.setText(state.order.orderText)
-    this.devLabel?.setText(`dev: ${state.order.id}`) // TEMP: remove before release
     this.mixView.resetStirred()
     this.applyPhase('order')
     this.speech.setAlpha(0)
@@ -361,14 +350,6 @@ export class ShopScene extends Phaser.Scene {
         })
       }),
     )
-  }
-
-  // TEMP: remove before release. Dev keys show a customer at once, with no sequence.
-  private showCustomerAtOnce() {
-    this.prepareCustomer(true)
-    this.speech.setAlpha(1)
-    this.orderView.setAlpha(1)
-    this.customer.show(this.state.order)
   }
 
   // Fade to dark, switch what is visible, fade back in. onSwitch runs at the dark moment,
@@ -668,7 +649,6 @@ export class ShopScene extends Phaser.Scene {
         addCounterDarken(this).setDepth(DEPTH.mixCounterDarken),
       )
     } else {
-      console.warn('Texture "counter_view" missing, using a colored rectangle')
       this.mixBackdrop.push(
         this.add.rectangle(width / 2, height / 2, width, height, MIX_FALLBACK_COLOR).setDepth(DEPTH.mixBackdrop),
       )
@@ -681,70 +661,6 @@ export class ShopScene extends Phaser.Scene {
     if (this.textures.exists(key)) {
       return this.add.image(width / 2, height / 2, key).setDisplaySize(width, height)
     }
-    console.warn(`Texture "${key}" missing, using a colored rectangle`)
     return this.add.rectangle(width / 2, height / 2, width, height, fallbackColor)
-  }
-
-  // TEMP: remove before release. N / B flip through all customers in the ORDER phase to check
-  // portraits in morning and evening. It only moves orderIndex: money and stars are never touched.
-  // G opens a contact sheet of all ten customers, E toggles evening in it.
-  // All of it is ignored while a phase transition runs.
-  private addDevKeys() {
-    // Plain small text in the bottom-left corner, clear of the buttons
-    this.devLabel = this.add.text(16, 700, '', {
-      fontFamily: 'Georgia, serif',
-      fontSize: '12px',
-      color: '#f6e7c1',
-      stroke: '#1a1210',
-      strokeThickness: 3,
-    })
-    this.sheet = new ContactSheet(this, {
-      backgroundKey: 'shop_morning',
-      counterTopY: COUNTER_TOP_Y,
-      eveningCustomerTint: EVENING_CUSTOMER_TINT,
-    })
-    const skip = (step: number) => {
-      if (this.phase !== 'order' || this.busy || this.sheet?.isOpen || this.state.practice) return
-      const { state } = this
-      state.orderIndex = (state.orderIndex + step + ORDERS.length) % ORDERS.length
-      state.clear()
-      state.smellsUsed = 0
-      this.showCustomerAtOnce()
-    }
-    const next = () => skip(1)
-    const previous = () => skip(-1)
-    const toggleSheet = () => {
-      if (!this.busy) this.sheet?.toggle()
-    }
-    const toggleEvening = () => {
-      if (!this.busy) this.sheet?.toggleEvening()
-    }
-    // 1 / 2 / 3: jump to the lose / win / great win ending (the money is made up, see game/dev.ts)
-    const endWith = (money: number) => () => {
-      if (this.leavingToEnding) return
-      this.leavingToEnding = true
-      this.scene.start('EndingScene', { money })
-    }
-    const loseEnding = endWith(devEndingMoney('lose', this.state.debt, this.state.greatWin))
-    const winEnding = endWith(devEndingMoney('win', this.state.debt, this.state.greatWin))
-    const greatEnding = endWith(devEndingMoney('great', this.state.debt, this.state.greatWin))
-    const keyboard = this.input.keyboard
-    keyboard?.on('keydown-ONE', loseEnding)
-    keyboard?.on('keydown-TWO', winEnding)
-    keyboard?.on('keydown-THREE', greatEnding)
-    keyboard?.on('keydown-N', next)
-    keyboard?.on('keydown-B', previous)
-    keyboard?.on('keydown-G', toggleSheet)
-    keyboard?.on('keydown-E', toggleEvening)
-    // Phaser reuses this scene on restart, so remove the listeners when it shuts down
-    this.events.once('shutdown', () => {
-      keyboard?.off('keydown-ONE', loseEnding)
-      keyboard?.off('keydown-TWO', winEnding)
-      keyboard?.off('keydown-THREE', greatEnding)
-      keyboard?.off('keydown-N', next)
-      keyboard?.off('keydown-B', previous)
-      keyboard?.off('keydown-G', toggleSheet)
-      keyboard?.off('keydown-E', toggleEvening)
-    })
   }
 }

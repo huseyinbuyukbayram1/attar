@@ -16,13 +16,6 @@ export const ENDINGS_PROGRESS = 'ending-assets-progress'
 export const GAME_READY = 'game-assets-ready'
 export const ENDINGS_READY = 'ending-assets-ready'
 
-// A missing file must not crash the game: warn, and the scenes use their fallbacks
-export function warnOnMissing(load: Phaser.Loader.LoaderPlugin) {
-  load.on('loaderror', (file: Phaser.Loader.File) => {
-    console.warn(`Could not load asset "${file.key}" (${file.url}), using fallback`)
-  })
-}
-
 // Step 1: the title shows the shop exterior and the sign, with painted buttons and the logo font
 export function queueTitleAssets(scene: Phaser.Scene) {
   scene.load.image('title_exterior', 'assets/title/title_exterior.jpg')
@@ -60,8 +53,8 @@ export function queueGameAssets(scene: Phaser.Scene) {
   for (const expression of ['neutral', 'happy', 'sad']) {
     scene.load.image(`player_${expression}`, `assets/characters/player_${expression}.png`)
   }
-  // One portrait per order, found by order id. A missing or invalid file fires 'loaderror' (warned
-  // above) and registers no texture; ShopScene checks textures.exists and uses a placeholder.
+  // One portrait per order, found by order id. A missing or invalid file fires 'loaderror' and registers no
+  // texture; ShopScene checks textures.exists and uses a placeholder.
   for (const order of ORDERS) {
     scene.load.image(`customer_${order.id}`, `assets/characters/customer_${order.id}.png`)
   }

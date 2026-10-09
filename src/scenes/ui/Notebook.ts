@@ -190,7 +190,6 @@ export class Notebook {
   private buildBook(): [Phaser.GameObjects.Container, Phaser.GameObjects.Container] {
     const { scene } = this
     if (scene.textures.exists('notebook_closed')) return this.buildBookSprite()
-    console.warn('Texture "notebook_closed" missing, drawing the notebook with shapes')
     const { width, height, radius } = BOOK
     const cover = scene.add.graphics()
     cover.fillStyle(BOOK_COLORS.cover, 1)
@@ -366,7 +365,6 @@ export class Notebook {
     if (scene.textures.exists(NOTEBOOK_OPEN_KEY)) {
       items.push(scene.add.image(0, 0, NOTEBOOK_OPEN_KEY))
     } else {
-      console.warn(`Texture "${NOTEBOOK_OPEN_KEY}" missing, drawing a plain page`)
       const page = scene.add.graphics()
       page.fillStyle(PARCHMENT, 1)
       page.fillRoundedRect(-width / 2, -height / 2, width, height, 24)

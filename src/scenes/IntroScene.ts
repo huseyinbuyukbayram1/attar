@@ -1,6 +1,4 @@
 import Phaser from 'phaser'
-import { DEV_KEYS, devEndingMoney } from '../game/dev'
-import type { DevEnding } from '../game/dev'
 import { getDifficulty } from '../game/difficulty'
 import { fillStory, INTRO_PAGES } from '../game/story'
 import { addPlateLabel, PlateButton } from './ui/PlateButton'
@@ -64,17 +62,7 @@ export class IntroScene extends Phaser.Scene {
     keyboard?.on('keydown-ESC', onEsc)
     const onResume = () => (this.pausing = false)
     this.events.on('resume', onResume)
-    // TEMP dev keys (game/dev.ts): 1 / 2 / 3 jump to the lose / win / great win ending
-    const endWith = (ending: DevEnding) => () => {
-      if (this.leaving) return
-      this.leaving = true
-      const { debt, greatWin } = getDifficulty()
-      this.scene.start('EndingScene', { money: devEndingMoney(ending, debt, greatWin) })
-    }
-    const devKeys: [string, () => void][] = [['keydown-ONE', endWith('lose')], ['keydown-TWO', endWith('win')], ['keydown-THREE', endWith('great')]]
-    if (DEV_KEYS) devKeys.forEach(([event, handler]) => keyboard?.on(event, handler))
     this.events.once('shutdown', () => {
-      devKeys.forEach(([event, handler]) => keyboard?.off(event, handler))
       keyboard?.off('keydown-SPACE', onSpace)
       keyboard?.off('keydown-ESC', onEsc)
       this.events.off('resume', onResume)

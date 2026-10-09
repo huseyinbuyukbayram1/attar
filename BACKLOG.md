@@ -15,7 +15,7 @@
 - Redesign customer portraits in a style consistent with the rest of the game (uses ~20 credits; only if credits remain)
 - Optional: colour polish of bubbles/buttons
 ### Oct 11
-- Release cleanup: remove dev shortcuts (N, B, G, E, 1, 2, 3) and "dev:" label, npm run build, final itch.io upload, page text with DreamLayer workflow and before/after images, DEVLOG "How DreamLayer was used", audio credits
+- Release cleanup: DONE (dev shortcuts N, B, G, E, 1, 2, 3, the "dev:" label, ContactSheet, dev.ts and the console warnings are removed; the page title is "Attar" and the favicon is a perfume bottle). Still to do: final itch.io upload, page text with DreamLayer workflow and before/after images, DEVLOG "How DreamLayer was used", audio credits
 
 ## Not urgent / polish
 - Notebook: citrus caption colour is hard to read on stains, darken slightly

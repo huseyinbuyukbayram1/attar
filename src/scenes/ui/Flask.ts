@@ -216,8 +216,6 @@ export class Flask extends Phaser.GameObjects.Container {
         .ellipse(0, spriteBottom - (sprite.height - WASTE_POT_DARK.y) * scale, WASTE_POT_DARK.width * scale, WASTE_POT_DARK.height * scale, WASTE_POT_DARK.color)
       layer.add([sprite, dark]) // the dark inside is just above the pot picture
       pot = { sprite, dark, scale, targetX, startX }
-    } else {
-      console.warn('Texture "waste_pot" missing, emptying without the pot')
     }
     // The dark inside follows the sprite when it slides
     const placeDark = () => {

@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { ENDINGS_PROGRESS, ENDINGS_READY, GAME_PROGRESS, GAME_READY, loadState, queueEndingAssets, queueGameAssets, warnOnMissing } from './assets'
+import { ENDINGS_PROGRESS, ENDINGS_READY, GAME_PROGRESS, GAME_READY, loadState, queueEndingAssets, queueGameAssets } from './assets'
 import { makeClearFlaskTexture } from './ui/clearFlaskTexture'
 
 // Invisible scene that loads everything but the title's files while the title is on screen. It is its own
@@ -11,7 +11,6 @@ export class BackgroundLoadScene extends Phaser.Scene {
   }
 
   preload() {
-    warnOnMissing(this.load)
     this.load.on('progress', (value: number) => this.game.events.emit(GAME_PROGRESS, value))
     queueGameAssets(this)
   }
