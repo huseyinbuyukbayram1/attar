@@ -29,3 +29,4 @@ dist-ssr
 # Audacity projects (huge) and macOS junk
 *.aup4*
 .DS_Store
+*.zip
