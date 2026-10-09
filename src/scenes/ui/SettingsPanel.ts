@@ -121,7 +121,8 @@ export class SettingsPanel {
     this.blocker.disableInteractive()
     this.applyFade()
 
-    const onEsc = () => this.close()
+    // Esc goes back one level: from the Endings sub-panel to the settings, from the settings to the game
+    const onEsc = () => (this.endings.visible ? this.showEndings(false) : this.close())
     scene.input.keyboard?.on('keydown-ESC', onEsc)
     // The sliders and the mute box follow changes made elsewhere (the M key)
     const stopListening = onSettingsChange(() => this.showSettings())

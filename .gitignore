@@ -25,3 +25,7 @@ dist-ssr
 
 .env
 .env.*
+
+# Audacity projects (huge) and macOS junk
+*.aup4*
+.DS_Store

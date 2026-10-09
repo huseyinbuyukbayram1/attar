@@ -72,7 +72,7 @@ export const ORDERS: Order[] = [
   {
     id: 'master',
     customerName: 'Old Kemal',
-    orderText: 'The scent your master used to wear. You know it better than you think.',
+    orderText: 'The scent your grandfather used to wear. You know it better than you think.',
     target: t({ woody: 3, spicy: 2, sweet: 2, floral: 1 }),
   },
 ]

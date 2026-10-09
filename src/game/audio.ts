@@ -292,5 +292,9 @@ export class SoundManager {
     this.stopListening()
     Object.values(this.ambience).forEach((sound) => sound?.destroy())
     this.ambience = {}
+    // Effects still playing (a coin, the footsteps ...) must not go on into the next scene
+    for (const sound of [...effectSounds.keys()]) sound.destroy()
+    effectSounds.clear()
+    pausedEffects = []
   }
 }

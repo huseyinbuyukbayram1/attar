@@ -26,6 +26,7 @@ export const DEFAULT_DIFFICULTY: DifficultyId = 'normal'
 const STORAGE_KEY = 'attar_difficulty'
 
 let current: DifficultyId = DEFAULT_DIFFICULTY
+let chosenThisSession = false // setDifficulty was called: counts as chosen even when nothing can be saved (private mode)
 
 // Reads the last choice (call once at the start)
 export function loadDifficulty() {
@@ -43,6 +44,7 @@ export function getDifficulty(): Difficulty {
 
 // True if the player has picked a difficulty before (it is saved), false on the very first visit
 export function hasChosenDifficulty(): boolean {
+  if (chosenThisSession) return true
   try {
     return window.localStorage.getItem(STORAGE_KEY) !== null
   } catch {
@@ -53,6 +55,7 @@ export function hasChosenDifficulty(): boolean {
 // Remembers the choice; the next game uses it
 export function setDifficulty(id: DifficultyId) {
   current = id
+  chosenThisSession = true
   try {
     window.localStorage.setItem(STORAGE_KEY, id)
   } catch {

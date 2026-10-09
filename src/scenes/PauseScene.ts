@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { pauseEffects, resumeEffects, stopPausedEffects } from '../game/audio'
+import { pauseEffects, resumeEffects, stopPausedEffects, toggleMute } from '../game/audio'
 import { setMusicDuck } from '../game/settings'
 import { PlateButton, PlatePanel } from './ui/PlateButton'
 import { SettingsPanel } from './ui/SettingsPanel'
@@ -84,7 +84,13 @@ export class PauseScene extends Phaser.Scene {
       else this.resume()
     }
     this.input.keyboard?.on('keydown-ESC', onEsc)
-    this.events.once('shutdown', () => this.input.keyboard?.off('keydown-ESC', onEsc))
+    // M mutes here too (the game scene underneath is paused and gets no keys)
+    const onMute = () => toggleMute(this)
+    this.input.keyboard?.on('keydown-M', onMute)
+    this.events.once('shutdown', () => {
+      this.input.keyboard?.off('keydown-ESC', onEsc)
+      this.input.keyboard?.off('keydown-M', onMute)
+    })
 
     this.settings = new SettingsPanel(this)
     // Drawn above everything, for the fade to black when leaving

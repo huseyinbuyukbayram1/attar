@@ -38,6 +38,7 @@ const PAYMENT_COUNT_MS = 400 // each money line (payment, tip) counts up from 0 
 const PAUSE_MS = 300 // a beat of empty shop before the next customer walks in
 const SPEECH_FADE_MS = 250 // the speech box fades in once the customer has arrived
 const REPLY_DELAY_MS = 400 // the player answers a moment after the customer's hint or the result line
+const SPEEDUP_DELAY_MS = 300 // after Deliver, clicks do not speed up the delivery for this long
 const BUTTON_FADE_MS = 250 // then the "Make perfume" button
 const COIN_FALLBACK_VOLUME = 0.5 // without a coin sound the click plays, this much quieter
 const COIN_RATE = { min: 0.95, max: 1.08 } // every coin sound is a little higher or lower
@@ -540,7 +541,10 @@ export class ShopScene extends Phaser.Scene {
     // While it plays, a click anywhere runs the rest faster (the zone also keeps clicks from reaching anything else)
     const { width, height } = this.scale
     const clicks = this.add.zone(width / 2, height / 2, width, height).setInteractive().setDepth(FADE_DEPTH - 1)
-    clicks.on('pointerdown', () => this.deliveryAnimation.speedUp())
+    const speedUpFrom = this.time.now + SPEEDUP_DELAY_MS // the second click of a double click on Deliver must not count
+    clicks.on('pointerdown', () => {
+      if (this.time.now >= speedUpFrom) this.deliveryAnimation.speedUp()
+    })
     this.deliveryAnimation.play({
       color: liquidColor(state.drops),
       evening: state.timeOfDay === 'evening',

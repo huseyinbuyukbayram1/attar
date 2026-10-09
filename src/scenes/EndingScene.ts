@@ -26,8 +26,8 @@ const KEN_BURNS = { to: 1.05, ms: 12000 } // a slow zoom of the picture
 // win crowd's heads at y 320. Sizes, fonts, positions and timing are the same on all three (1280x720 screen px).
 const BAND = { width: 1024, height: 160, y: 100, fontSize: 24, padding: { x: 40, y: 20 } }
 const BOTTOM_ROW = {
-  y: 682, // center line of the money line and the buttons
-  band: { height: 110, y: 676 },
+  y: 690, // center line of the money line and the buttons (low, so the win picture's notebook and cat stay as free as possible)
+  band: { height: 110, y: 684 },
   buttonWidth: 200,
   buttonHeight: 46,
   fontSize: 22,
@@ -43,17 +43,30 @@ const LEAVE_FADE_MS = 400
 // (1217, 432.5), it is 112.5 px wide, and its top edge rises 2.1 degrees to the right (the bottom edge
 // 0.4), about -1.3 degrees on average. Converted to screen px from the center of the picture (x 2/3).
 const PICTURE_TO_SCREEN = 1280 / 1920
-const LOSE_SIGN = {
-  x: (1217 - 960) * PICTURE_TO_SCREEN,
-  y: (432.5 - 540) * PICTURE_TO_SCREEN,
-  boardWidth: 112.5 * PICTURE_TO_SCREEN,
-  degrees: -1.3,
+const SIGN_STYLE = {
   widthShare: 0.7, // of the board's width
   color: '#f3dfb0',
   stroke: '#3b2412',
   strokeThickness: 1.5,
   alpha: 0.9, // a little see-through, so it looks painted on
 }
+const LOSE_SIGN = {
+  x: (1217 - 960) * PICTURE_TO_SCREEN,
+  y: (432.5 - 540) * PICTURE_TO_SCREEN,
+  boardWidth: 112.5 * PICTURE_TO_SCREEN,
+  degrees: -1.3,
+}
+// The same on the great win picture (ending_greatwin.jpg, 1920x1080), measured the same way: the board's
+// corners are about (1234, 265), (1366, 271), (1367, 347) and (1235, 347), so its center is (1301, 307), it is
+// 132 px wide, and it hangs 2.2 degrees lower on the right (clockwise). The sign sits at the right edge, so
+// the slow zoom moves it a little outwards; the bottom row and the band are far from it.
+const GREAT_SIGN = {
+  x: (1301 - 960) * PICTURE_TO_SCREEN,
+  y: (307 - 540) * PICTURE_TO_SCREEN,
+  boardWidth: 132 * PICTURE_TO_SCREEN,
+  degrees: 2.2,
+}
+type Sign = typeof LOSE_SIGN
 
 type Ending = 'lose' | 'win' | 'great'
 const PICTURES: Record<Ending, string> = { lose: 'ending_lose', win: 'ending_win', great: 'ending_greatwin' }
@@ -122,12 +135,13 @@ export class EndingScene extends Phaser.Scene {
     })
   }
 
-  // The picture in a container that zooms slowly; on the lose picture the container also holds the sign text
+  // The picture in a container that zooms slowly; on the lose and great win pictures the container also holds the sign text
   private addArt() {
     const { width, height } = this.scale
     const art = this.add.container(width / 2, height / 2)
     art.add(this.makePicture(PICTURES[this.ending], this.ending !== 'lose'))
-    if (this.ending === 'lose') art.add(this.makeLoseSign())
+    if (this.ending === 'lose') art.add(this.makeSign(LOSE_SIGN))
+    if (this.ending === 'great') art.add(this.makeSign(GREAT_SIGN))
     this.tweens.add({ targets: art, scale: KEN_BURNS.to, duration: KEN_BURNS.ms, ease: 'Linear' })
   }
 
@@ -145,22 +159,22 @@ export class EndingScene extends Phaser.Scene {
 
   // "Attar" on the blank sign, in the logo font, tilted like the board. It is in the picture's container,
   // so it zooms with the picture.
-  private makeLoseSign(): Phaser.GameObjects.Text {
+  private makeSign(board: Sign): Phaser.GameObjects.Text {
     const sign = this.add
-      .text(LOSE_SIGN.x, LOSE_SIGN.y, 'Attar', {
+      .text(board.x, board.y, 'Attar', {
         fontFamily: LOGO_FONT,
         letterSpacing: LOGO_LETTER_SPACING,
         fontStyle: 'bold',
         fontSize: '40px',
-        color: LOSE_SIGN.color,
-        stroke: LOSE_SIGN.stroke,
-        strokeThickness: LOSE_SIGN.strokeThickness,
+        color: SIGN_STYLE.color,
+        stroke: SIGN_STYLE.stroke,
+        strokeThickness: SIGN_STYLE.strokeThickness,
       })
       .setOrigin(0.5)
       .setResolution(2)
-      .setRotation(Phaser.Math.DegToRad(LOSE_SIGN.degrees))
-      .setAlpha(LOSE_SIGN.alpha)
-    sign.setFontSize((40 * LOSE_SIGN.boardWidth * LOSE_SIGN.widthShare) / sign.width)
+      .setRotation(Phaser.Math.DegToRad(board.degrees))
+      .setAlpha(SIGN_STYLE.alpha)
+    sign.setFontSize((40 * board.boardWidth * SIGN_STYLE.widthShare) / sign.width)
     return sign
   }
 

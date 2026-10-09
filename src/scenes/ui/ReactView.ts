@@ -12,6 +12,7 @@ const GAP = 14
 const BUTTON = { width: 180, height: 44, fontSize: 22 }
 const MAIN = { accent: 0xffe2a8, boldLabel: true } // the main button's look: a warm golden plate
 const NEXT = { width: 220, height: 44, fontSize: 22 } // "Next customer" takes the place of "Deliver"
+const NEXT_DELAY_MS = 600 // clicks on Next are ignored this long after it appears: it is where Deliver was, so a double click would skip the result
 const centerX = (width: number, rightEdge: number) => rightEdge - width / 2
 const centerY = (height: number) => BOTTOM_EDGE - height / 2
 
@@ -24,12 +25,17 @@ export class ReactView {
   private adjustButton: PlateButton
   private deliverButton: PlateButton
   private nextButton: PlateButton
+  private scene: Phaser.Scene
+  private nextReadyAt = 0 // scene time when Next may be clicked
 
   constructor(scene: Phaser.Scene, callbacks: Callbacks) {
+    this.scene = scene
     this.root = scene.add.container(0, 0)
     this.deliverButton = new PlateButton(scene, centerX(BUTTON.width, RIGHT_EDGE), centerY(BUTTON.height), { label: 'Deliver', ...BUTTON, ...MAIN, onClick: callbacks.onDeliver })
     this.adjustButton = new PlateButton(scene, centerX(BUTTON.width, RIGHT_EDGE - BUTTON.width - GAP), centerY(BUTTON.height), { label: 'Adjust', ...BUTTON, onClick: callbacks.onAdjust })
-    this.nextButton = new PlateButton(scene, centerX(NEXT.width, RIGHT_EDGE), centerY(NEXT.height), { label: 'Next customer', ...NEXT, ...MAIN, onClick: callbacks.onNext })
+    this.nextButton = new PlateButton(scene, centerX(NEXT.width, RIGHT_EDGE), centerY(NEXT.height), { label: 'Next customer', ...NEXT, ...MAIN, onClick: () => {
+      if (scene.time.now >= this.nextReadyAt) callbacks.onNext()
+    } })
     this.root.add([this.adjustButton, this.deliverButton, this.nextButton])
   }
 
@@ -53,6 +59,7 @@ export class ReactView {
     this.adjustButton.setVisible(false)
     this.deliverButton.setVisible(false)
     this.nextButton.setLabel(label)
+    this.nextReadyAt = this.scene.time.now + NEXT_DELAY_MS
     this.nextButton.setVisible(true)
   }
 

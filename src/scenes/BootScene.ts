@@ -43,10 +43,9 @@ export class BootScene extends Phaser.Scene {
     for (const expression of ['neutral', 'happy', 'sad']) {
       this.load.image(`player_${expression}`, `assets/characters/player_${expression}.png`)
     }
-    // Painted button plates (long and short for buttons and labels, round for future icon buttons)
+    // Painted button plates (long and short, for buttons and labels)
     this.load.image('button_long', 'assets/ui/button_long.png')
     this.load.image('button_short', 'assets/ui/button_short.png')
-    this.load.image('button_round', 'assets/ui/button_round.png')
     // The open notebook (1100x703), the background of the ingredient notebook panel
     this.load.image('notebook_open', 'assets/props/notebook_open.png')
     // The delivery: the gift bottle (165x220), the cash box (240x223) and a coin (64x44); without them the

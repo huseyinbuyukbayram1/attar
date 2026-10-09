@@ -10,6 +10,7 @@ const COIN = { width: 30, depth: -54, fallbackRadius: 10, fallbackColor: 0xe0b04
 const COIN_START = { x: 690, y: 548, spread: 28 }
 const COIN_FLIGHT = { ms: 520, arc: 90, spin: { min: 0.6, max: 2 }, shrinkFrom: 0.75, landSpread: 8 } // arc: how high above the straight line it flies; spin in radians
 const COIN_STAGGER_MS = 90
+const REFUSED_BEAT_MS = 500 // a refused delivery has no animation: the result is shown this long before it is over
 const FAST = 4 // a click anywhere runs the rest of the animation this much faster
 
 export type DeliveryOptions = {
@@ -60,7 +61,8 @@ export class DeliveryAnimation {
     }
     const afterBottle = () => {
       o.onResult()
-      if (coinCount === 0) finish()
+      if (coinCount === 0 && o.refused) this.scene.time.delayedCall(REFUSED_BEAT_MS, finish) // a refused result stays a moment before Next
+      else if (coinCount === 0) finish()
       else this.flyCoins(coinCount, o, finish)
     }
     const { bottle } = this

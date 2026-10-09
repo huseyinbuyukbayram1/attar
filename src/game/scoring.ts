@@ -84,7 +84,8 @@ export function hintFor(mix: Scent, target: Scent): string {
     if (worst.diff > 0 && runnerUp.diff < 0 && Math.abs(worst.diff) - Math.abs(runnerUp.diff) <= HINT_TIE_MARGIN) {
       worst = runnerUp
     }
-    return worst.diff > 0 ? `So close! Just a touch less ${worst.axis}.` : `So close! Just a touch more ${worst.axis}.`
+    if (worst.diff > 0) return `So close! Just a touch less ${worst.axis}.`
+    return worst.axis === 'sweet' ? 'So close! Just a touch sweeter.' : `So close! Just a touch more ${worst.axis}.` // text only: "more sweet" reads badly
   }
 
   // Further off: the axis with the largest excess and the axis with the largest shortfall. They are
