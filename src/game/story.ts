@@ -13,7 +13,7 @@ export const INTRO_PAGES: string[] = [
 ]
 
 export const WIN_PAGE =
-  "On the fifth evening, you count the coins twice: {earned}. The debt is paid. Misk stretches on the step, as if he knew all along. Tomorrow the door opens again, and this time it's your shop."
+  "On the fifth evening, you count the coins twice: {earned}. The debt is paid. Misk stretches out on the counter, as if he knew all along. Tomorrow the door opens again, and this time it's your shop."
 
 // The great win (the money reaches the difficulty's greatWin amount) is its own single page
 export const GREAT_WIN_PAGE =

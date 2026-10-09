@@ -138,8 +138,13 @@ export class EndingScene extends Phaser.Scene {
   // The picture in a container that zooms slowly; on the lose and great win pictures the container also holds the sign text
   private addArt() {
     const { width, height } = this.scale
-    const art = this.add.container(width / 2, height / 2)
-    art.add(this.makePicture(PICTURES[this.ending], this.ending !== 'lose'))
+    // The win picture zooms from its bottom edge, so the coins and the notebook on the counter are not pushed
+    // off-screen; the others zoom from the center
+    const anchorBottom = this.ending === 'win'
+    const art = this.add.container(width / 2, anchorBottom ? height : height / 2)
+    const picture = this.makePicture(PICTURES[this.ending], this.ending !== 'lose')
+    if (anchorBottom) picture.setY(-height / 2) // keeps the picture covering the screen
+    art.add(picture)
     if (this.ending === 'lose') art.add(this.makeSign(LOSE_SIGN))
     if (this.ending === 'great') art.add(this.makeSign(GREAT_SIGN))
     this.tweens.add({ targets: art, scale: KEN_BURNS.to, duration: KEN_BURNS.ms, ease: 'Linear' })
