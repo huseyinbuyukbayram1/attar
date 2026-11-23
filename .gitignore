@@ -33,3 +33,17 @@ dist-ssr
 
 # Originals kept before compressing (scripts/compressAssets.mjs); the old versions are also in git history
 assets_raw/originals_before_compress/
+
+# Build output and TypeScript cache
+build
+*.tsbuildinfo
+
+# More OS junk and local Claude Code settings
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+._*
+.claude/settings.local.json
+
+# Raw/source art and audio (about 540 MB). Not needed to run or build the game; kept locally only.
+assets_raw/
